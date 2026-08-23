@@ -1,56 +1,64 @@
-# Welcome to your Expo app 👋
+# UM Fixhub — Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Campus facility issue reporting app for University of Mindanao students and facilities staff. Built with Expo (React Native) and NativeWind.
 
-## Get started
+## Tech Stack
 
-1. Install dependencies
+- **Expo** (React Native) with Expo Router for file-based navigation
+- **NativeWind** (Tailwind CSS for React Native) for styling
+- **TypeScript**
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Getting Started
 
 ```bash
-npm run reset-project
+npm install
+npx expo install expo-image-picker   # if not already installed
+npx expo start -c
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Press `w` to preview in a browser, or scan the QR code with Expo Go on your phone (same Wi-Fi network required).
 
-### Other setup steps
+## Project Structure
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```
+src/
+├── app/
+│   ├── index.tsx           Landing / onboarding screen
+│   ├── login.tsx            Student login
+│   ├── signup.tsx           Student sign up
+│   ├── (tabs)/               Student-facing app (Home, Report, My Reports, Updates)
+│   │   ├── home.tsx
+│   │   ├── report/            Report flow: category -> form -> confirmation
+│   │   ├── my-reports/        List + detail/tracking screen
+│   │   └── updates.tsx
+│   └── (admin)/               Admin panel (Dashboard, Reports, Team, Analytics, Settings)
+├── context/
+│   └── reports-context.tsx   Shared in-memory report data (student + admin both read/write this)
+├── data/
+│   ├── categories.ts          Issue category metadata
+│   ├── staff.ts                Maintenance staff roster
+│   └── current-user.ts        Mock signed-in student/admin (until real auth is connected)
+```
 
-## Learn more
+## Current Status
 
-To learn more about developing your project with Expo, look at the following resources:
+**Working:**
+- Full student flow: browse -> sign up/log in -> report an issue (with real camera/photo library access) -> track status -> see notifications
+- Full admin panel: dashboard stats, searchable/filterable report list, assign staff + update status, team roster, analytics, settings
+- Student and admin share the same live report data - an admin update (status, assigned staff) is reflected immediately in the student's tracking screen
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+**Not yet connected (known next steps):**
+- No real backend - all data lives in memory and resets on reload. Connecting to the Laravel API is the next milestone.
+- No real authentication - Login/Sign Up accept any input and just navigate through; there's no admin login gate either (`/dashboard` is reachable directly).
+- Admin Team/Analytics screens use static placeholder data, not real staff records or historical metrics.
 
-## Join the community
+## Design Tokens
 
-Join our community of developers creating universal apps.
+| Token | Hex |
+|---|---|
+| Maroon (primary) | `#A1000B` |
+| Mustard (accent) | `#E3A72F` |
+| Cream (background) | `#FAF7F2` |
+| Ink (text) | `#2A1015` |
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Configured in `tailwind.config.js` as `maroon`, `mustard`, `cream`, `ink`.

@@ -1,18 +1,22 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "UM Fixhub",
+    "slug": "um-fixhub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
-    "userInterfaceStyle": "automatic",
+    "scheme": "umfixhub",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FAF7F2",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "edu.umindanao.umfixhub",
+      "icon": "./assets/images/icon.png",
+      "supportsTablet": false
     },
     "android": {
+      "package": "edu.umindanao.umfixhub",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FAF7F2",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -21,16 +25,27 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "UM Fixhub",
+      "shortName": "Fixhub",
+      "themeColor": "#A1000B",
+      "backgroundColor": "#FAF7F2"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#FAF7F2",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 160
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "UM Fixhub uses your photo library so you can attach a picture of the issue you're reporting.",
+          "cameraPermission": "UM Fixhub uses your camera so you can take a photo of the issue you're reporting."
         }
       ]
     ],
