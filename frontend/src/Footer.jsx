@@ -1,0 +1,1 @@
+export default function Footer() { return <footer className="max-w-6xl mx-auto px-6 py-8 mt-8 border-t border-slate-200 flex flex-col sm:flex-row justify-between gap-4 text-sm text-slate-400"><span>© 2024 University Maintenance Fixhub. All rights reserved.</span><span>Privacy Policy　 Terms of Service　 Admin Login</span></footer>; }
