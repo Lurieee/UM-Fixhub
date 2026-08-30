@@ -1,5 +1,239 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { margin: 0; font-family: "Inter", ui-sans-serif, system-ui, sans-serif; background: #f7f9fc; }
+
+body {
+  margin: 0;
+  background: #f7f9fc;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { background: #f5f7fb; }
+main { overflow-x: clip; }
+input, textarea, button { font: inherit; }
+input, textarea { max-width: 100%; }
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 3px solid #fca5a5;
+  outline-offset: 3px;
+}
+
+button,
+a {
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+button:hover,
+a:hover {
+  transform: translateY(-2px);
+}
+
+button:active,
+a:active {
+  transform: translateY(0) scale(.98);
+}
+
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+@media (min-width: 1024px) {
+  main section > header[class*="-mx-10"] {
+    height: auto;
+    min-height: 4rem;
+    margin: 1rem 0 1.75rem;
+    padding: 1rem 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.25rem;
+    box-shadow: 0 3px 10px rgb(15 23 42 / .04);
+  }
+}
+
+@media (max-width: 1023px) {
+  main section > header[class*="-mx-10"] {
+    height: auto;
+    min-height: 4rem;
+    margin: 0 0 1.75rem;
+    padding: 1rem;
+    gap: .75rem;
+    align-items: flex-start;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px rgb(15 23 42 / .04);
+  }
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.auth-brand img {
+  width: 156px;
+  height: auto;
+  object-fit: contain;
+}
+
+.header-link { position: relative; border: 0; background: transparent; font-weight: 800; cursor: pointer; }
+.header-link::after { position: absolute; right: 50%; bottom: 5px; left: 50%; height: 2px; content: ""; border-radius: 2px; background: currentColor; transition: left 180ms ease, right 180ms ease; }
+.header-link:hover { background: #8c1022; color: #fff; }
+.header-link:hover::after { right: 22%; left: 22%; }
+.header-cta { background: #b40012; }
+.header-cta:hover { background: #800018; }
+
+.landing-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 470px;
+  display: flex;
+  align-items: center;
+  background-image: linear-gradient(105deg, rgba(58, 4, 16, .94) 0%, rgba(126, 9, 31, .78) 48%, rgba(31, 17, 18, .30) 100%), url('/um-campus.jpg');
+  background-position: center;
+  background-size: cover;
+}
+
+/* Make the public landing page feel like a full-width site, while retaining
+   generous responsive padding for the content. */
+body:has(.landing-hero) > #root > div > header,
+.landing-hero,
+#about-campus + section,
+footer#support {
+  max-width: none;
+}
+
+body:has(.landing-hero) > #root > div > header { padding-right: clamp(1.5rem, 6vw, 7rem); padding-left: clamp(1.5rem, 6vw, 7rem); }
+.landing-hero { padding-right: clamp(1.75rem, 12vw, 18rem); padding-left: clamp(1.75rem, 12vw, 18rem); }
+#about-campus + section { padding-right: clamp(1.75rem, 6vw, 7rem); padding-left: clamp(1.75rem, 6vw, 7rem); }
+footer#support { padding-right: clamp(1.75rem, 6vw, 7rem); padding-left: clamp(1.75rem, 6vw, 7rem); }
+
+/* Landing-page feature panels */
+#about-campus + section article {
+  min-height: 280px;
+  background: linear-gradient(145deg, #94142b, #650819);
+  color: #fff;
+  box-shadow: 0 14px 28px rgb(92 4 23 / .16);
+  transition: transform 220ms ease, box-shadow 220ms ease, background 220ms ease;
+}
+
+#about-campus + section article:hover {
+  transform: translateY(-8px) scale(1.035);
+  background: linear-gradient(145deg, #ac1a36, #760a20);
+  box-shadow: 0 22px 42px rgb(92 4 23 / .28);
+}
+
+#about-campus + section article > span {
+  background: rgb(255 255 255 / .15);
+  color: #fff;
+}
+
+#about-campus + section article p { color: #ffe9ed; }
+
+/* Footer */
+footer#support {
+  background: #070708;
+  color: #c8c8ce;
+}
+
+footer#support b { color: #fff; }
+footer#support .auth-brand {
+  width: 156px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #070708;
+}
+
+/* The supplied wordmark has a solid white canvas. This compact footer mark
+   keeps the identity legible while allowing its surrounding background to
+   remain exactly the footer black. */
+footer#support .auth-brand img { display: none; }
+footer#support .auth-brand::after {
+  content: "UM FixHub";
+  color: transparent;
+  background: linear-gradient(90deg, #c31c38 0 36%, #fff 36%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 40px;
+  letter-spacing: -.8px;
+}
+
+/* Key the supplied white logo canvas into the black footer without replacing
+   the real logo artwork. The screen blend makes its inverted black canvas
+   disappear into the footer while retaining a bright, high-contrast mark. */
+footer#support .auth-brand img {
+  display: block;
+  width: 156px;
+  height: auto;
+  filter: none;
+  mix-blend-mode: normal;
+}
+footer#support .auth-brand::after { display: none; }
+
+/* Keep footer and authentication marks in the exact same source colors as
+   the header; only the white canvas is removed by the shared logo component. */
+.auth-art .auth-brand img { filter: none; mix-blend-mode: normal; }
+
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(380px, 46%) 1fr;
+  background: #f7f9fc;
+}
+
+.auth-art {
+  position: relative;
+  min-height: 700px;
+  overflow: hidden;
+  padding: 54px 56px;
+  color: #fff;
+  background-image: linear-gradient(135deg, rgba(34, 2, 11, .94), rgba(117, 9, 30, .80) 58%, rgba(25, 7, 12, .55)), url('/um-campus.jpg');
+  background-position: center;
+  background-size: cover;
+}
+
+.auth-art::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: .55;
+  background: linear-gradient(130deg, transparent 0 35%, #ffffff13 35.2% 36%, transparent 36.2% 60%, #ffffff0f 60.2% 61%, transparent 61.2%);
+}
+
+.auth-art .auth-brand { position: relative; }
+.art-copy { position: relative; max-width: 400px; margin-top: 230px; }
+.art-copy h1 { margin: 0; font-size: clamp(40px, 4vw, 55px); line-height: 1.05; letter-spacing: -2px; }
+.art-copy p { margin-top: 26px; max-width: 360px; color: #fff0f0; line-height: 1.62; }
+.community { position: absolute; bottom: 60px; left: 56px; color: #f7b8be; font-size: 13px; }
+
+.auth-content { display: grid; place-items: center; padding: 50px 28px; }
+.auth-form { width: min(100%, 410px); }
+.back, .forgot, .switch button { border: 0; background: transparent; color: #b40012; font-weight: 800; cursor: pointer; }
+.back { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+.back svg { width: 15px; }
+.auth-form h1 { margin: 31px 0 9px; font-size: 29px; letter-spacing: -1px; }
+.intro { margin: 0 0 28px; color: #53637b; font-size: 14px; line-height: 1.5; }
+.auth-field { display: block; margin: 16px 0; font-size: 12px; font-weight: 800; }
+.auth-field > span { display: block; margin-bottom: 8px; }
+.auth-field div { display: flex; align-items: center; gap: 10px; padding: 0 14px; border: 1px solid #dfe7f0; border-radius: 11px; background: #fff; color: #8ca0bd; }
+.auth-field input { width: 100%; min-width: 0; padding: 13px 0; border: 0; outline: 0; color: #334155; font-size: 13px; }
+.auth-field button { border: 0; background: transparent; color: #94a6bf; cursor: pointer; }
+.forgot { float: right; margin-top: -5px; font-size: 11px; }
+.auth-submit { width: 100%; margin-top: 37px; padding: 15px; border: 0; border-radius: 12px; background: #b40012; color: #fff; font-size: 14px; font-weight: 800; box-shadow: 0 10px 18px #b4001233; cursor: pointer; }
+.auth-submit:hover { background: #850016; box-shadow: 0 15px 25px #73001255; transform: translateY(-3px); }
+.auth-submit:active { transform: translateY(0) scale(.98); }
+.switch { margin-top: 29px; text-align: center; color: #5e6e85; font-size: 12px; }
+
+@media (max-width: 760px) {
+  .auth-page { grid-template-columns: 1fr; }
+  .auth-art { min-height: 380px; padding: 34px 30px; }
+  .art-copy { margin-top: 90px; }
+  .art-copy h1 { font-size: 37px; }
+  .community { bottom: 25px; left: 30px; }
+  .auth-content { padding: 44px 25px; }
+}
