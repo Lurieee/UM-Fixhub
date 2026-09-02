@@ -9,14 +9,16 @@ import ReportIssue from "./ReportIssue";
 import MyReports from "./MyReports";
 import ReportDetail from "./ReportDetail";
 import Profile from "./Profile";
-import { LandingPage, LoginPage, SignUpPage } from "./AuthPages";
+import { AdminLoginPage, LandingPage, LoginPage, SignUpPage } from "./AuthPages";
 import IssueCategories from "./IssueCategories";
 import SubmissionConfirmation from "./SubmissionConfirmation";
+import AdminPanel from "./AdminPanel";
 import { activityStats, campusUpdates, currentUser, recentReports as initialReports } from "./mockData";
 
 function parseRoute(path) {
   if (path === "/" || path === "/welcome") return { name: "landing" };
   if (path === "/login") return { name: "login" };
+  if (path === "/admin/login") return { name: "adminLogin" };
   if (path === "/signup") return { name: "signup" };
   if (path === "/dashboard") return { name: "dashboard" };
   if (path === "/report-issue") return { name: "categories" };
@@ -25,6 +27,7 @@ function parseRoute(path) {
   if (path === "/my-reports") return { name: "reports" };
   if (path === "/updates") return { name: "updates" };
   if (path === "/profile") return { name: "profile" };
+  if (path === "/admin") return { name: "admin" };
 
   const editMatch = path.match(/^\/my-reports\/(\d+)\/edit$/);
   if (editMatch) return { name: "editReport", id: Number(editMatch[1]) };
@@ -110,7 +113,9 @@ export default function App() {
 
   if (route.name === "landing") return <LandingPage onNavigate={navigate} />;
   if (route.name === "login") return <LoginPage onNavigate={navigate} onLogin={restoreUser} />;
+  if (route.name === "adminLogin") return <AdminLoginPage onNavigate={navigate} />;
   if (route.name === "signup") return <SignUpPage onNavigate={navigate} onSignup={saveUser} />;
+  if (route.name === "admin") return <AdminPanel reports={reports} onLogout={() => navigate("/login")} />;
 
   return <div className="min-h-screen bg-[#f5f7fb] text-slate-900 lg:flex">
     <Navbar activeKey={activeKey} user={user} unreadNoticeCount={unreadNoticeCount} onNavigate={navigate} />

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { BookOpen, CalendarDays, FileText, LogOut, Mail, MapPin, Pencil, ShieldCheck } from "lucide-react";
 
-export default function Profile({ user, reports, onLogout }) {
+export default function Profile({ user, reports, onLogout, accountType = "Student" }) {
   const [photoUrl, setPhotoUrl] = useState("");
   const fileInputRef = useRef(null);
   const resolved = reports.filter((report) => report.status === "resolved").length;
@@ -12,7 +12,7 @@ export default function Profile({ user, reports, onLogout }) {
   };
 
   return <section className="mx-auto max-w-5xl">
-    <p className="text-sm font-bold uppercase tracking-widest text-[#b40012]">Student account</p>
+    <p className="text-sm font-bold uppercase tracking-widest text-[#b40012]">{accountType} account</p>
     <h1 className="mt-2 text-3xl font-extrabold tracking-tight">My Profile</h1>
     <p className="mt-2 text-slate-600">Manage your account information and view your reporting activity.</p>
     <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.5fr]">
@@ -25,7 +25,7 @@ export default function Profile({ user, reports, onLogout }) {
           <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={updatePhoto} />
         </div>
         <h2 className="mt-5 text-2xl font-extrabold">{user.firstName} {user.lastName}</h2>
-        <p className="mt-1 text-sm text-slate-300">Student · University of Mindanao</p>
+        <p className="mt-1 text-sm text-slate-300">{accountType} · University of Mindanao</p>
         <div className="mt-7 space-y-4 border-t border-white/10 pt-6 text-sm text-slate-200">
           <p className="flex gap-3"><Mail className="h-5 w-5 text-[#b84052]" />{user.email}</p>
           <p className="flex gap-3"><BookOpen className="h-5 w-5 text-[#b84052]" />{user.program}</p>
@@ -38,7 +38,7 @@ export default function Profile({ user, reports, onLogout }) {
           <h2 className="text-lg font-extrabold">Account information</h2>
           <dl className="mt-6 grid gap-5 sm:grid-cols-2">
             <Info label="Student ID" value={user.studentId} />
-            <Info label="Account type" value="Student" />
+            <Info label="Account type" value={accountType} />
             <Info label="Campus" value={user.campus} />
             <Info label="Member since" value="August 2026" icon={CalendarDays} />
           </dl>
