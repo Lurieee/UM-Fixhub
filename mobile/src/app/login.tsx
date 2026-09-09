@@ -4,17 +4,23 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppAlert } from '@/components/app-alert';
+import { useAuth } from '@/context/auth-context';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { showAlert } = useAppAlert();
+  const { login, verifyTwoFactor } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = () => {
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+
+  const handleLogin = async () => {
     if (!email.trim() || !password) {
       showAlert('Missing info', 'Please enter your campus email and password.');
       return;
@@ -23,9 +29,35 @@ export default function LoginScreen() {
       showAlert('Invalid email', 'Please enter a valid campus email address.');
       return;
     }
-    showAlert('Welcome back!', "You're logged in.", [
-      { text: 'Continue', onPress: () => router.replace('/home') },
-    ]);
+
+    setSubmitting(true);
+    try {
+      const result = await login(email.trim(), password);
+      if (result.twoFactorRequired) {
+        setTempToken(result.tempToken);
+      } else {
+        const destination = result.user.role === 'admin' ? '/(admin)/dashboard' : '/home';
+        router.replace(destination);
+      }
+    } catch (err: any) {
+      showAlert('Login failed', err.response?.data?.message || 'Invalid email or password.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!tempToken) return;
+    setSubmitting(true);
+    try {
+      const user = await verifyTwoFactor(tempToken, code);
+      const destination = user.role === 'admin' ? '/(admin)/dashboard' : '/home';
+      router.replace(destination);
+    } catch (err: any) {
+      showAlert('Verification failed', err.response?.data?.message || 'Invalid code.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSendReset = () => {
@@ -37,6 +69,40 @@ export default function LoginScreen() {
     setShowForgot(false);
     setResetEmail('');
   };
+
+  if (tempToken) {
+    return (
+      <SafeAreaView style={{ alignItems: 'center' }} className="flex-1 bg-cream">
+        <View style={{ width: '100%', maxWidth: 430 }} className="px-6 pt-2">
+          <View className="flex-row items-center mb-6">
+            <Pressable onPress={() => setTempToken(null)} className="w-8 h-8 items-center justify-center">
+              <Text className="text-ink text-xl">‹</Text>
+            </Pressable>
+          </View>
+          <Text className="text-ink text-2xl font-bold mb-1">Enter your code</Text>
+          <Text className="text-ink/60 text-sm mb-6 leading-5">
+            Open your authenticator app and enter the current 6-digit code.
+          </Text>
+          <TextInput
+            value={code}
+            onChangeText={setCode}
+            placeholder="123456"
+            placeholderTextColor="#8A7B7E"
+            keyboardType="number-pad"
+            maxLength={6}
+            className="bg-white border border-ink/10 rounded-xl px-4 py-3.5 text-ink mb-6"
+          />
+          <Pressable
+            onPress={handleVerifyCode}
+            disabled={submitting}
+            className="bg-maroon rounded-xl py-3.5 items-center mb-4"
+          >
+            <Text className="text-white font-semibold">{submitting ? 'Verifying...' : 'Verify & Log In'}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ alignItems: 'center' }} className="flex-1 bg-cream">
@@ -115,8 +181,12 @@ export default function LoginScreen() {
         {!showForgot && <View className="mb-6" />}
 
         {/* Submit */}
-        <Pressable onPress={handleLogin} className="bg-maroon rounded-xl py-3.5 items-center mb-4">
-          <Text className="text-white font-semibold">Log In</Text>
+        <Pressable
+          onPress={handleLogin}
+          disabled={submitting}
+          className="bg-maroon rounded-xl py-3.5 items-center mb-4"
+        >
+          <Text className="text-white font-semibold">{submitting ? 'Logging in...' : 'Log In'}</Text>
         </Pressable>
 
         <View className="flex-row justify-center">
@@ -125,10 +195,6 @@ export default function LoginScreen() {
             <Text className="text-maroon text-xs font-semibold">Sign Up</Text>
           </Pressable>
         </View>
-
-        <Pressable onPress={() => router.push('/dashboard')} className="items-center mt-7 py-2">
-          <Text className="text-ink/45 text-xs">Facilities staff? Open the staff portal</Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );

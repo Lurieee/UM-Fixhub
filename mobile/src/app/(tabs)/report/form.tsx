@@ -21,6 +21,7 @@ export default function ReportFormScreen() {
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<Urgency>('Medium');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const openCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -50,21 +51,29 @@ export default function ReportFormScreen() {
     ]);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !building.trim() || !description.trim()) {
       showAlert('Missing info', 'Please add a short title, location, and description.');
       return;
     }
-    const report = addReport({
-      title: title.trim(),
-      category: category ?? 'Other',
-      building,
-      room,
-      description,
-      urgency,
-      photoUri,
-    });
-    router.push({ pathname: '/report/submitted', params: { id: report.id } });
+
+    setSubmitting(true);
+    try {
+      const report = await addReport({
+        title: title.trim(),
+        category: category ?? 'Other',
+        building,
+        room,
+        description,
+        urgency,
+        photoUri,
+      });
+      router.push({ pathname: '/report/submitted', params: { id: report.id } });
+    } catch (err: any) {
+      showAlert('Submission failed', err.response?.data?.message || 'Could not submit report. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -169,8 +178,8 @@ export default function ReportFormScreen() {
           })}
         </View>
 
-        <Pressable onPress={handleSubmit} className="bg-maroon rounded-xl py-3.5 items-center">
-          <Text className="text-white font-semibold">Submit Report</Text>
+        <Pressable onPress={handleSubmit} disabled={submitting} className="bg-maroon rounded-xl py-3.5 items-center">
+          <Text className="text-white font-semibold">{submitting ? 'Submitting...' : 'Submit Report'}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

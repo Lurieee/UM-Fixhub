@@ -1,107 +1,10 @@
-import { createContext, ReactNode, useContext, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
-export type ReportStatus = 'Submitted' | 'In Progress' | 'Resolved';
-export type Urgency = 'Low' | 'Medium' | 'High';
+import api from '@/lib/api';
+import { normalizeReport, Report, ReportStatus, Urgency } from '@/lib/normalizeReport';
+import { useAuth } from '@/context/auth-context';
 
-export type Message = {
-  id: string;
-  from: string;
-  text: string;
-  time: string;
-};
-
-export type Report = {
-  id: string;
-  refCode: string;
-  title: string;
-  category: string;
-  building: string;
-  room: string;
-  description: string;
-  urgency: Urgency;
-  status: ReportStatus;
-  reportedAt: string;
-  reportedBy: string;
-  assignedStaff: string | null;
-  photoUri: string | null;
-  messages: Message[];
-};
-
-const initialReports: Report[] = [
-  {
-    id: '1',
-    refCode: '#CMP-2026-904',
-    title: 'Broken Desk Chair',
-    category: 'Furniture',
-    building: 'Library',
-    room: '302',
-    description:
-      'The wooden back support is entirely detached from the metal frame. It presents a tipping risk.',
-    urgency: 'Medium',
-    status: 'In Progress',
-    reportedAt: 'Today, 9:40 AM',
-    reportedBy: 'Lorena Smith (Student)',
-    assignedStaff: 'Dave Miller (General Maintenance)',
-    photoUri: null,
-    messages: [
-      {
-        id: 'm1',
-        from: 'Marcus (Maintenance Staff)',
-        text:
-          "Yoohoo, I've located the chair. I'm picking up a replacement leg unit from our warehouse now. Should be sorted shortly!",
-        time: '10:20 AM',
-      },
-    ],
-  },
-  {
-    id: '2',
-    refCode: '#CMP-2026-874',
-    title: 'Leaky Water Fountain',
-    category: 'Plumbing',
-    building: 'Student Union',
-    room: 'Lobby',
-    description: 'Water fountain drips continuously even when not in use.',
-    urgency: 'Low',
-    status: 'Resolved',
-    reportedAt: 'Aug 14, 8:15 AM',
-    reportedBy: 'Lorena Smith (Student)',
-    assignedStaff: 'Marcus Brody (Plumber)',
-    photoUri: null,
-    messages: [],
-  },
-  {
-    id: '3',
-    refCode: '#CMP-2026-861',
-    title: 'Classroom AC Not Working',
-    category: 'Infrastructure',
-    building: 'Science Annex',
-    room: '101',
-    description: 'The AC unit blows warm air only. Room becomes uncomfortably hot by midday.',
-    urgency: 'Medium',
-    status: 'Submitted',
-    reportedAt: 'Oct 23, 1:05 PM',
-    reportedBy: 'Miguel Santos (Student)',
-    assignedStaff: null,
-    photoUri: null,
-    messages: [],
-  },
-  {
-    id: '4',
-    refCode: '#CMP-2026-859',
-    title: 'Exposed Wire in Lab',
-    category: 'Electrical',
-    building: 'Engineering Hall',
-    room: '204',
-    description: 'A live wire is exposed near the workstation. Immediate safety hazard.',
-    urgency: 'High',
-    status: 'Submitted',
-    reportedAt: 'Oct 22, 4:40 PM',
-    reportedBy: 'Anna Cruz (Student)',
-    assignedStaff: null,
-    photoUri: null,
-    messages: [],
-  },
-];
+export type { Report, ReportStatus, Urgency };
 
 type NewReportInput = {
   title: string;
@@ -115,71 +18,80 @@ type NewReportInput = {
 
 type ReportUpdate = {
   status?: ReportStatus;
-  urgency?: Urgency;
   assignedStaff?: string | null;
 };
 
 type ReportsContextType = {
   reports: Report[];
-  addReport: (data: NewReportInput) => Report;
+  isLoading: boolean;
+  addReport: (data: NewReportInput) => Promise<Report>;
   getReport: (id: string) => Report | undefined;
-  addMessage: (reportId: string, text: string) => void;
-  updateReport: (id: string, updates: ReportUpdate) => void;
+  updateReport: (id: string, updates: ReportUpdate) => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const ReportsContext = createContext<ReportsContextType | undefined>(undefined);
 
 export function ReportsProvider({ children }: { children: ReactNode }) {
-  const [reports, setReports] = useState<Report[]>(initialReports);
+  const { user } = useAuth();
+  const [reports, setReports] = useState<Report[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const addReport = (data: NewReportInput) => {
-    const id = Date.now().toString();
-    const refCode = `#CMP-2026-${Math.floor(900 + Math.random() * 99)}`;
-    const newReport: Report = {
-      ...data,
-      id,
-      refCode,
-      status: 'Submitted',
-      reportedAt:
-        'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      reportedBy: 'Lorena Smith (Student)',
-      assignedStaff: null,
-      photoUri: data.photoUri ?? null,
-      messages: [],
-    };
+  const refresh = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const { data } = await api.get('/reports');
+      setReports(data.map(normalizeReport));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) refresh();
+    else setReports([]);
+  }, [user?.id]);
+
+  const addReport = async (data: NewReportInput): Promise<Report> => {
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('category', data.category);
+    formData.append('building', data.building);
+    formData.append('room', data.room);
+    formData.append('description', data.description);
+    formData.append('urgency', data.urgency);
+
+    if (data.photoUri) {
+      const filename = data.photoUri.split('/').pop() || 'photo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      formData.append('photo', { uri: data.photoUri, name: filename, type } as any);
+    }
+
+    const { data: apiReport } = await api.post('/reports', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    const newReport = normalizeReport(apiReport);
     setReports((prev) => [newReport, ...prev]);
     return newReport;
   };
 
   const getReport = (id: string) => reports.find((r) => r.id === id);
 
-  const addMessage = (reportId: string, text: string) => {
-    setReports((prev) =>
-      prev.map((r) =>
-        r.id === reportId
-          ? {
-              ...r,
-              messages: [
-                ...r.messages,
-                {
-                  id: Date.now().toString(),
-                  from: 'You',
-                  text,
-                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                },
-              ],
-            }
-          : r
-      )
-    );
-  };
+  const updateReport = async (id: string, updates: ReportUpdate) => {
+    const payload: Record<string, string | null> = {};
+    if (updates.status) payload.status = updates.status;
+    if (updates.assignedStaff !== undefined) payload.assigned_to = updates.assignedStaff;
 
-  const updateReport = (id: string, updates: ReportUpdate) => {
-    setReports((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+    const { data } = await api.patch(`/reports/${id}`, payload);
+    const updated = normalizeReport(data);
+    setReports((prev) => prev.map((r) => (r.id === id ? updated : r)));
   };
 
   return (
-    <ReportsContext.Provider value={{ reports, addReport, getReport, addMessage, updateReport }}>
+    <ReportsContext.Provider value={{ reports, isLoading, addReport, getReport, updateReport, refresh }}>
       {children}
     </ReportsContext.Provider>
   );

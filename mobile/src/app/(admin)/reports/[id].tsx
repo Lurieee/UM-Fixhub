@@ -1,71 +1,40 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { categoryIconName } from '@/data/categories';
-import { useReports, ReportStatus, Urgency } from '@/context/reports-context';
+import { useReports, ReportStatus } from '@/context/reports-context';
 import { CURRENT_ADMIN } from '@/data/current-user';
-import { useStaff } from '@/context/staff-context';
 import { OutlineIcon } from '@/components/outline-icon';
 import { useAppAlert } from '@/components/app-alert';
 
-const URGENCY_LEVELS: Urgency[] = ['Low', 'Medium', 'High'];
-const STATUS_LEVELS: ReportStatus[] = ['Submitted', 'In Progress', 'Resolved'];
-
-function Dropdown({
-  label,
-  value,
-  options,
-  onSelect,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onSelect: (v: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <View className="mb-3">
-      <Text className="text-ink/50 text-xs mb-1.5">{label}</Text>
-      <Pressable
-        onPress={() => setOpen((v) => !v)}
-        className="flex-row items-center justify-between bg-[#F4F1EC] border border-ink/10 rounded-lg px-4 py-3"
-      >
-        <Text className="text-ink text-xs font-semibold">{value}</Text>
-        <Text className="text-ink/40 text-xs">{open ? '▲' : '▼'}</Text>
-      </Pressable>
-      {open && (
-        <View className="border border-ink/10 rounded-lg mt-1 overflow-hidden">
-          {options.map((opt) => (
-            <Pressable
-              key={opt}
-              onPress={() => {
-                onSelect(opt);
-                setOpen(false);
-              }}
-              className={`px-4 py-3 ${opt === value ? 'bg-mustard/15' : 'bg-white'}`}
-            >
-              <Text className="text-ink text-xs">{opt}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </View>
-  );
+function formatTimestamp(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
+
+const NEXT_STATUS: Record<ReportStatus, ReportStatus | null> = {
+  Submitted: 'In Progress',
+  'In Progress': 'Resolved',
+  Resolved: null,
+};
 
 export default function AdminReportDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getReport, updateReport } = useReports();
-  const { staffOptions } = useStaff();
   const { showAlert } = useAppAlert();
   const report = getReport(id);
 
-  const [staff, setStaff] = useState(report?.assignedStaff ?? 'Unassigned');
-  const [urgency, setUrgency] = useState<Urgency>(report?.urgency ?? 'Medium');
-  const [status, setStatus] = useState<ReportStatus>(report?.status ?? 'Submitted');
+  const [assignedStaff, setAssignedStaff] = useState(report?.assignedStaff ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setAssignedStaff(report?.assignedStaff ?? '');
+  }, [report?.assignedStaff]);
 
   if (!report) {
     return (
@@ -75,15 +44,41 @@ export default function AdminReportDetailScreen() {
     );
   }
 
-  const handleUpdate = () => {
-    updateReport(report.id, {
-      status,
-      urgency,
-      assignedStaff: staff === 'Unassigned' ? null : staff,
-    });
-    showAlert('Report updated', 'Status, urgency, and assignment saved.');
-    router.back();
+  const assignmentChanged = assignedStaff !== (report.assignedStaff ?? '');
+  const nextStatus = NEXT_STATUS[report.status];
+
+  const saveAssignment = async () => {
+    setSaving(true);
+    try {
+      await updateReport(report.id, { assignedStaff: assignedStaff || null });
+    } catch (err: any) {
+      showAlert('Update failed', err.response?.data?.message || 'Could not save assignment.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const advanceStatus = async () => {
+    if (!nextStatus) return;
+    setSaving(true);
+    try {
+      await updateReport(report.id, { status: nextStatus });
+    } catch (err: any) {
+      showAlert('Update failed', err.response?.data?.message || 'Could not update status.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const steps = [
+    { label: 'Submitted', done: true, sub: report.reportedAt },
+    {
+      label: 'In Progress',
+      done: report.status === 'In Progress' || report.status === 'Resolved',
+      sub: formatTimestamp(report.inProgressAt),
+    },
+    { label: 'Resolved', done: report.status === 'Resolved', sub: formatTimestamp(report.resolvedAt) },
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-[#F4F1EC]">
@@ -126,53 +121,56 @@ export default function AdminReportDetailScreen() {
           {report.building}, Room {report.room}
         </Text>
 
+        <Text className="text-ink/50 text-xs font-semibold mb-1">Urgency</Text>
+        <Text className="text-ink text-sm mb-3">{report.urgency}</Text>
+
         <Text className="text-ink/50 text-xs font-semibold mb-1">Description</Text>
         <Text className="text-ink/80 text-sm leading-5 mb-5">{report.description}</Text>
+
+        <Text className="text-ink text-sm font-bold mb-3">Tracking Status</Text>
+        <View className="bg-white border border-ink/10 rounded-xl p-4 mb-5">
+          {steps.map((s, i) => (
+            <View key={s.label} className={`flex-row gap-3 ${i < steps.length - 1 ? 'mb-4' : ''}`}>
+              <View className={`w-6 h-6 rounded-full items-center justify-center ${s.done ? 'bg-maroon' : 'bg-ink/10'}`}>
+                <Text className={`text-[11px] ${s.done ? 'text-white' : 'text-ink/40'}`}>{s.done ? '✓' : ''}</Text>
+              </View>
+              <View>
+                <Text className={`text-xs font-semibold ${s.done ? 'text-ink' : 'text-ink/40'}`}>{s.label}</Text>
+                {!!s.sub && <Text className="text-ink/40 text-[11px] mt-0.5">{s.sub}</Text>}
+              </View>
+            </View>
+          ))}
+        </View>
 
         <View className="bg-white border border-ink/10 rounded-xl p-4">
           <Text className="text-ink text-sm font-bold mb-4">Admin Action panel</Text>
 
-          <Dropdown label="Assign Staff / Team" value={staff} options={['Unassigned', ...staffOptions]} onSelect={setStaff} />
+          <Text className="text-ink/50 text-xs mb-1.5">Assigned To</Text>
+          <TextInput
+            value={assignedStaff}
+            onChangeText={setAssignedStaff}
+            placeholder="Type a name..."
+            placeholderTextColor="#8A7B7E"
+            className="bg-[#F4F1EC] border border-ink/10 rounded-lg px-4 py-3 text-ink text-sm mb-2"
+          />
+          {assignmentChanged && (
+            <Pressable onPress={saveAssignment} disabled={saving} className="bg-[#151824] rounded-lg py-2.5 items-center mb-4">
+              <Text className="text-white text-xs font-semibold">{saving ? 'Saving...' : 'Save Assignment'}</Text>
+            </Pressable>
+          )}
 
-          <Text className="text-ink/50 text-xs mb-1.5">Urgency</Text>
-          <View className="flex-row bg-[#F4F1EC] border border-ink/10 rounded-lg p-1 mb-3">
-            {URGENCY_LEVELS.map((level) => {
-              const active = urgency === level;
-              return (
-                <Pressable
-                  key={level}
-                  onPress={() => setUrgency(level)}
-                  className={`flex-1 py-2 rounded-md items-center ${active ? 'bg-maroon' : ''}`}
-                >
-                  <Text className={`text-xs font-semibold ${active ? 'text-white' : 'text-ink/60'}`}>
-                    {level}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <Text className="text-ink/50 text-xs mb-1.5">Status</Text>
-          <View className="flex-row bg-[#F4F1EC] border border-ink/10 rounded-lg p-1 mb-5">
-            {STATUS_LEVELS.map((level) => {
-              const active = status === level;
-              return (
-                <Pressable
-                  key={level}
-                  onPress={() => setStatus(level)}
-                  className={`flex-1 py-2 rounded-md items-center ${active ? 'bg-[#151824]' : ''}`}
-                >
-                  <Text className={`text-[11px] font-semibold ${active ? 'text-white' : 'text-ink/60'}`}>
-                    {level === 'Submitted' ? 'Pending' : level}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <Pressable onPress={handleUpdate} className="bg-maroon rounded-xl py-3.5 items-center">
-            <Text className="text-white font-semibold text-sm">Assign &amp; Update Report</Text>
-          </Pressable>
+          {nextStatus && (
+            <Pressable onPress={advanceStatus} disabled={saving} className="bg-maroon rounded-xl py-3.5 items-center">
+              <Text className="text-white font-semibold text-sm">
+                {saving ? 'Updating...' : `Mark as ${nextStatus}`}
+              </Text>
+            </Pressable>
+          )}
+          {!nextStatus && (
+            <View className="bg-green-50 rounded-xl py-3.5 items-center">
+              <Text className="text-green-700 font-semibold text-sm">Report Resolved</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

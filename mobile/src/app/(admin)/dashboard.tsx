@@ -4,14 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CURRENT_ADMIN } from '@/data/current-user';
 import { useReports } from '@/context/reports-context';
-import { useStaff } from '@/context/staff-context';
-import { useAppAlert } from '@/components/app-alert';
+
+const PALETTE = ['#A1000B', '#E3A72F', '#3B82F6', '#22C55E', '#9B8B8E', '#8B5CF6'];
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
-  const { reports, updateReport } = useReports();
-  const { staff } = useStaff();
-  const { showAlert } = useAppAlert();
+  const { reports } = useReports();
 
   const total = reports.length;
   const pending = reports.filter((r) => r.status === 'Submitted').length;
@@ -21,60 +19,12 @@ export default function AdminDashboardScreen() {
 
   const urgentAlerts = reports.filter((r) => r.urgency === 'High' && r.status !== 'Resolved').slice(0, 2);
 
-  const categoryCounts: Record<string, number> = { Furniture: 0, Plumbing: 0, Electrical: 0, Infrastructure: 0 };
+  const categoryCounts: Record<string, number> = {};
   reports.forEach((r) => {
-    if (categoryCounts[r.category] !== undefined) categoryCounts[r.category] += 1;
+    categoryCounts[r.category] = (categoryCounts[r.category] || 0) + 1;
   });
-  const maxCount = Math.max(1, ...Object.values(categoryCounts));
-  const bars = [
-    { key: 'Furniture', label: 'Furn.', color: '#A1000B' },
-    { key: 'Plumbing', label: 'Plumb.', color: '#E3A72F' },
-    { key: 'Electrical', label: 'Elec.', color: '#3B82F6' },
-    { key: 'Infrastructure', label: 'AC/Heat', color: '#22C55E' },
-  ];
-
-  const handleDispatchTeam = () => {
-    const unassigned = reports.filter((r) => !r.assignedStaff && r.status !== 'Resolved');
-    const available = staff.filter((s) => s.status === 'Available');
-
-    if (unassigned.length === 0) {
-      showAlert('Nothing to dispatch', 'Every open report already has staff assigned.');
-      return;
-    }
-    if (available.length === 0) {
-      showAlert('No staff available', 'All staff are currently busy or off-duty.');
-      return;
-    }
-
-    const pairCount = Math.min(unassigned.length, available.length);
-    showAlert(
-      'Dispatch Team?',
-      `This will assign ${pairCount} available staff member${pairCount > 1 ? 's' : ''} to ${pairCount} unassigned report${pairCount > 1 ? 's' : ''}.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Dispatch',
-          onPress: () => {
-            for (let i = 0; i < pairCount; i++) {
-              updateReport(unassigned[i].id, {
-                assignedStaff: `${available[i].name} (${available[i].role})`,
-                status: 'In Progress',
-              });
-            }
-            showAlert('Team dispatched', `${pairCount} report${pairCount > 1 ? 's' : ''} assigned and moved to In Progress.`);
-          },
-        },
-      ]
-    );
-  };
-
-  const handleExportReport = () => {
-    const filename = `um-fixhub-reports_${new Date().toISOString().slice(0, 10)}.csv`;
-    showAlert(
-      'Export Report',
-      `Exporting ${total} report${total !== 1 ? 's' : ''} as "${filename}".\n\n(This is a placeholder — connecting the Laravel backend will enable a real downloadable export.)`
-    );
-  };
+  const categoryEntries = Object.entries(categoryCounts);
+  const maxCount = Math.max(1, ...categoryEntries.map(([, count]) => count));
 
   return (
     <SafeAreaView className="flex-1 bg-[#F4F1EC]">
@@ -93,7 +43,6 @@ export default function AdminDashboardScreen() {
           <View style={{ width: '47%' }} className="bg-white rounded-xl p-4 border border-ink/10">
             <Text className="text-ink/50 text-xs mb-1">Total Reports</Text>
             <Text className="text-ink text-2xl font-bold">{total}</Text>
-            <Text className="text-green-600 text-[11px] mt-1">+12%</Text>
           </View>
           <View style={{ width: '47%' }} className="bg-white rounded-xl p-4 border border-ink/10">
             <Text className="text-ink/50 text-xs mb-1">Pending</Text>
@@ -112,17 +61,12 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
 
-        <View className="flex-row gap-3 mb-5">
-          <Pressable onPress={handleDispatchTeam} className="flex-1 bg-maroon rounded-xl py-3 items-center">
-            <Text className="text-white text-xs font-semibold">⊕ Dispatch Team</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleExportReport}
-            className="flex-1 bg-white border border-maroon rounded-xl py-3 items-center"
-          >
-            <Text className="text-maroon text-xs font-semibold">⇪ Export Report</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => router.push('/reports')}
+          className="bg-maroon rounded-xl py-3 items-center mb-5"
+        >
+          <Text className="text-white text-xs font-semibold">View All Reports</Text>
+        </Pressable>
 
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-ink text-sm font-semibold">⚠ High Priority Alerts</Text>
@@ -153,18 +97,21 @@ export default function AdminDashboardScreen() {
 
         <View className="bg-white border border-ink/10 rounded-xl p-4">
           <Text className="text-ink text-sm font-semibold mb-4">Reports by Category</Text>
-          <View className="flex-row items-end justify-between h-24">
-            {bars.map((b) => {
-              const count = categoryCounts[b.key];
-              const height = Math.max(8, (count / maxCount) * 80);
-              return (
-                <View key={b.key} className="items-center gap-2">
-                  <View style={{ height, width: 24, backgroundColor: b.color, borderRadius: 6 }} />
-                  <Text className="text-ink/40 text-[10px]">{b.label}</Text>
-                </View>
-              );
-            })}
-          </View>
+          {categoryEntries.length === 0 ? (
+            <Text className="text-ink/40 text-xs">No reports yet.</Text>
+          ) : (
+            <View className="flex-row items-end justify-between h-24">
+              {categoryEntries.map(([category, count], index) => {
+                const height = Math.max(8, (count / maxCount) * 80);
+                return (
+                  <View key={category} className="items-center gap-2">
+                    <View style={{ height, width: 24, backgroundColor: PALETTE[index % PALETTE.length], borderRadius: 6 }} />
+                    <Text className="text-ink/40 text-[10px]">{category}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

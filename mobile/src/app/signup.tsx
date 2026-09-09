@@ -4,10 +4,12 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppAlert } from '@/components/app-alert';
+import { useAuth } from '@/context/auth-context';
 
 export default function SignUpScreen() {
   const router = useRouter();
   const { showAlert } = useAppAlert();
+  const { register } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -15,8 +17,9 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleCreateAccount = () => {
+  const handleCreateAccount = async () => {
     if (!fullName.trim() || !email.trim() || !studentId.trim() || !password) {
       showAlert('Missing info', 'Please fill in all fields.');
       return;
@@ -33,9 +36,26 @@ export default function SignUpScreen() {
       showAlert("Passwords don't match", 'Please re-enter matching passwords.');
       return;
     }
-    showAlert('Account created!', 'Welcome to UM Fixhub.', [
-      { text: 'Continue', onPress: () => router.replace('/home') },
-    ]);
+
+    setSubmitting(true);
+    try {
+      await register({
+        name: fullName.trim(),
+        email: email.trim(),
+        student_id: studentId.trim(),
+        password,
+        password_confirmation: confirmPassword,
+      });
+      showAlert('Account created!', 'Welcome to UM Fixhub.', [
+        { text: 'Continue', onPress: () => router.replace('/home') },
+      ]);
+    } catch (err: any) {
+      const errors = err.response?.data?.errors as Record<string, string[]> | undefined;
+const message = errors ? Object.values(errors)[0]?.[0] : 'Could not create account.';
+      showAlert('Sign up failed', message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -129,8 +149,12 @@ export default function SignUpScreen() {
         </View>
 
         {/* Submit */}
-        <Pressable onPress={handleCreateAccount} className="bg-maroon rounded-xl py-3.5 items-center mb-4">
-          <Text className="text-white font-semibold">Create Account</Text>
+        <Pressable
+          onPress={handleCreateAccount}
+          disabled={submitting}
+          className="bg-maroon rounded-xl py-3.5 items-center mb-4"
+        >
+          <Text className="text-white font-semibold">{submitting ? 'Creating account...' : 'Create Account'}</Text>
         </Pressable>
 
         <View className="flex-row justify-center">

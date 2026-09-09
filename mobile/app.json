@@ -47,7 +47,8 @@
           "photosPermission": "UM Fixhub uses your photo library so you can attach a picture of the issue you're reporting.",
           "cameraPermission": "UM Fixhub uses your camera so you can take a photo of the issue you're reporting."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

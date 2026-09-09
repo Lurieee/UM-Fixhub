@@ -3,8 +3,9 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { categoryIconName } from '@/data/categories';
-import { CURRENT_USER } from '@/data/current-user';
+import { useAuth } from '@/context/auth-context';
 import { useReports } from '@/context/reports-context';
+import { useAnnouncements } from '@/context/announcements-context';
 import { OutlineIcon } from '@/components/outline-icon';
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
@@ -13,10 +14,25 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Resolved: { bg: 'bg-green-50', text: 'text-green-700' },
 };
 
+function initialsFor(name?: string) {
+  if (!name) return 'U';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { reports } = useReports();
+  const { announcements } = useAnnouncements();
   const recent = reports.slice(0, 2);
+  const latestAnnouncement = announcements[0];
+  const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   return (
     <SafeAreaView style={{ alignItems: 'center' }} className="flex-1 bg-cream">
@@ -27,10 +43,17 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View className="flex-row items-center justify-between mt-3 mb-5">
-          <Text className="text-ink text-2xl font-bold">Hi, {CURRENT_USER.firstName}!</Text>
-          <View className="w-10 h-10 rounded-full bg-mustard/30 items-center justify-center">
-            <Text className="text-ink text-xs font-bold">{CURRENT_USER.initials}</Text>
-          </View>
+          <Text className="text-ink text-2xl font-bold">Hi, {firstName}!</Text>
+          <Pressable
+            onPress={() => router.push('/profile')}
+            className="w-10 h-10 rounded-full bg-mustard/30 items-center justify-center overflow-hidden"
+          >
+            {user?.avatar_url ? (
+              <Image source={{ uri: user.avatar_url }} style={{ width: 40, height: 40 }} />
+            ) : (
+              <Text className="text-ink text-xs font-bold">{initialsFor(user?.name)}</Text>
+            )}
+          </Pressable>
         </View>
 
         {/* Hero CTA */}
@@ -48,15 +71,18 @@ export default function HomeScreen() {
         </View>
 
         {/* Announcement */}
-        <View className="flex-row gap-3 items-start bg-mustard/15 border border-mustard/40 rounded-xl px-4 py-3 mb-6">
-          <Text className="text-base">📢</Text>
-          <View className="flex-1">
-            <Text className="text-ink text-xs font-semibold">DPT Building Elevator Maintenance</Text>
-            <Text className="text-ink/60 text-[11px] mt-0.5">
-              Out of service on Oct 24th from 8:00 AM to noon.
-            </Text>
-          </View>
-        </View>
+        {latestAnnouncement && (
+          <Pressable
+            onPress={() => router.push('/updates')}
+            className="flex-row gap-3 items-start bg-mustard/15 border border-mustard/40 rounded-xl px-4 py-3 mb-6"
+          >
+            <Text className="text-base">📢</Text>
+            <View className="flex-1">
+              <Text className="text-ink text-xs font-semibold">{latestAnnouncement.title}</Text>
+              <Text className="text-ink/60 text-[11px] mt-0.5">{latestAnnouncement.body}</Text>
+            </View>
+          </Pressable>
+        )}
 
         {/* Recent reports */}
         <View className="flex-row items-center justify-between mb-3">
@@ -96,6 +122,9 @@ export default function HomeScreen() {
               </Pressable>
             );
           })}
+          {recent.length === 0 && (
+            <Text className="text-ink/50 text-sm text-center mt-4">No reports yet.</Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

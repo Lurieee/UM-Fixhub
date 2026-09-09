@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { categoryIconName } from '@/data/categories';
@@ -13,11 +12,17 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Resolved: { bg: 'bg-green-50', text: 'text-green-700' },
 };
 
+function formatTimestamp(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 export default function ReportDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getReport, addMessage } = useReports();
-  const [draft, setDraft] = useState('');
+  const { getReport } = useReports();
 
   const report = getReport(id);
   if (!report) {
@@ -31,19 +36,19 @@ export default function ReportDetailScreen() {
   const style = STATUS_STYLES[report.status];
   const steps = [
     { label: 'Submitted', done: true, sub: report.reportedAt },
-    { label: 'Reviewed by Staff', done: report.status !== 'Submitted', sub: '' },
     {
-      label: report.status === 'Resolved' ? 'Resolved' : 'In Progress',
-      done: report.status !== 'Submitted',
-      sub: report.status === 'In Progress' ? 'Assigned to Marcus (Staff)' : '',
+      label: 'In Progress',
+      done: report.status === 'In Progress' || report.status === 'Resolved',
+      sub: report.inProgressAt
+        ? `${formatTimestamp(report.inProgressAt)}${report.assignedStaff ? ` · Assigned to ${report.assignedStaff}` : ''}`
+        : '',
+    },
+    {
+      label: 'Resolved',
+      done: report.status === 'Resolved',
+      sub: report.resolvedAt ? formatTimestamp(report.resolvedAt) : '',
     },
   ];
-
-  const handleSend = () => {
-    if (!draft.trim()) return;
-    addMessage(report.id, draft.trim());
-    setDraft('');
-  };
 
   return (
     <SafeAreaView style={{ alignItems: 'center' }} className="flex-1 bg-cream">
@@ -85,7 +90,7 @@ export default function ReportDetailScreen() {
         </View>
 
         <Text className="text-ink text-sm font-semibold mb-3">Tracking Status</Text>
-        <View className="bg-white border border-ink/10 rounded-xl p-4 mb-5">
+        <View className="bg-white border border-ink/10 rounded-xl p-4">
           {steps.map((s, i) => (
             <View key={s.label} className={`flex-row gap-3 ${i < steps.length - 1 ? 'mb-4' : ''}`}>
               <View
@@ -105,37 +110,6 @@ export default function ReportDetailScreen() {
               </View>
             </View>
           ))}
-        </View>
-
-        <Text className="text-ink text-sm font-semibold mb-3">Staff Updates &amp; Chat</Text>
-        <View className="gap-3 mb-4">
-          {report.messages.length === 0 && (
-            <Text className="text-ink/40 text-xs">No updates yet.</Text>
-          )}
-          {report.messages.map((m) => (
-            <View key={m.id} className="flex-row gap-3">
-              <View className="w-8 h-8 rounded-full bg-maroon items-center justify-center">
-                <Text className="text-white text-xs font-bold">{m.from.charAt(0)}</Text>
-              </View>
-              <View className="flex-1 bg-white border border-ink/10 rounded-xl p-3">
-                <Text className="text-ink text-xs font-semibold mb-1">{m.from}</Text>
-                <Text className="text-ink/70 text-xs leading-4">{m.text}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View className="flex-row items-center gap-2">
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Write a message..."
-            placeholderTextColor="#8A7B7E"
-            className="flex-1 bg-white border border-ink/10 rounded-xl px-4 py-3 text-ink text-sm"
-          />
-          <Pressable onPress={handleSend} className="bg-maroon rounded-xl px-4 py-3">
-            <Text className="text-white text-xs font-semibold">Send</Text>
-          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -55,6 +55,12 @@ export default function TabsLayout() {
             tabBarIcon: ({ focused }) => <TabIcon name="bell-outline" focused={focused} />,
           }}
         />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            href: null,
+          }}
+        />
       </Tabs>
     </View>
   );

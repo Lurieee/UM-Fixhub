@@ -23,16 +23,14 @@ export default function ReportSubmittedScreen() {
           </Text>
         </View>
 
-        <View className="bg-white border border-ink/10 rounded-xl p-4 mb-6">
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-ink/50 text-xs">Reference Code</Text>
-            <Text className="text-ink text-xs font-semibold">{report?.refCode}</Text>
+        {report && (
+          <View className="bg-white border border-ink/10 rounded-xl p-4 mb-6">
+            <View className="flex-row justify-between">
+              <Text className="text-ink/50 text-xs">Reference Code</Text>
+              <Text className="text-ink text-xs font-semibold">{report.refCode}</Text>
+            </View>
           </View>
-          <View className="flex-row justify-between">
-            <Text className="text-ink/50 text-xs">Estimated Review Time</Text>
-            <Text className="text-maroon text-xs font-semibold">Within 2 hours</Text>
-          </View>
-        </View>
+        )}
 
         <Pressable
           onPress={() => router.push('/home')}
