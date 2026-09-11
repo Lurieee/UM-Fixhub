@@ -8,6 +8,38 @@ import { useReports, Urgency } from '@/context/reports-context';
 import { useAppAlert } from '@/components/app-alert';
 
 const URGENCY_LEVELS: Urgency[] = ['Low', 'Medium', 'High'];
+const BUILDINGS = ['DPT', 'BE', 'GET', 'CTE', 'PS', 'FEA'];
+
+function BuildingDropdown({ value, onSelect }: { value: string; onSelect: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View className="flex-1">
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        className="flex-row items-center justify-between bg-white border border-ink/10 rounded-xl px-4 py-3.5"
+      >
+        <Text className={value ? 'text-ink' : 'text-ink/40'}>{value || 'Select building'}</Text>
+        <Text className="text-ink/40 text-xs">{open ? '▲' : '▼'}</Text>
+      </Pressable>
+      {open && (
+        <View className="border border-ink/10 rounded-xl mt-1 overflow-hidden bg-white">
+          {BUILDINGS.map((b) => (
+            <Pressable
+              key={b}
+              onPress={() => {
+                onSelect(b);
+                setOpen(false);
+              }}
+              className={`px-4 py-3 ${b === value ? 'bg-mustard/15' : ''}`}
+            >
+              <Text className="text-ink text-sm">{b}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function ReportFormScreen() {
   const router = useRouter();
@@ -112,13 +144,7 @@ export default function ReportFormScreen() {
 
         <Text className="text-ink text-sm font-medium mb-1.5">Where is the issue?</Text>
         <View className="flex-row gap-3 mb-4">
-          <TextInput
-            value={building}
-            onChangeText={setBuilding}
-            placeholder="Building"
-            placeholderTextColor="#8A7B7E"
-            className="flex-1 bg-white border border-ink/10 rounded-xl px-4 py-3.5 text-ink"
-          />
+          <BuildingDropdown value={building} onSelect={setBuilding} />
           <TextInput
             value={room}
             onChangeText={setRoom}

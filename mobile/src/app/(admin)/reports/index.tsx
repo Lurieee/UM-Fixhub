@@ -4,14 +4,26 @@ import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { categoryIconName } from '@/data/categories';
-import { CURRENT_ADMIN } from '@/data/current-user';
+import { useAuth } from '@/context/auth-context';
 import { useReports } from '@/context/reports-context';
 import { OutlineIcon } from '@/components/outline-icon';
 
 const FILTERS = ['All', 'Pending', 'Active', 'Resolved'] as const;
 
+function initialsFor(name?: string) {
+  if (!name) return 'A';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function AdminReportsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { reports } = useReports();
   const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>();
 
@@ -55,11 +67,18 @@ export default function AdminReportsScreen() {
       <View className="bg-[#151824] px-6 pt-4 pb-5 flex-row items-center justify-between">
         <View>
           <Text className="text-white text-xl font-bold">All Campus Reports</Text>
-          <Text className="text-white/50 text-xs mt-0.5">Overview &amp; Dispatch Dispatch</Text>
+          <Text className="text-white/50 text-xs mt-0.5">Overview &amp; Dispatch</Text>
         </View>
-        <View className="w-10 h-10 rounded-full bg-mustard/60 items-center justify-center">
-          <Text className="text-ink text-xs font-bold">{CURRENT_ADMIN.initials}</Text>
-        </View>
+        <Pressable
+          onPress={() => router.push('/profile')}
+          className="w-10 h-10 rounded-full bg-mustard/60 items-center justify-center overflow-hidden"
+        >
+          {user?.avatar_url ? (
+            <Image source={{ uri: user.avatar_url }} style={{ width: 40, height: 40 }} />
+          ) : (
+            <Text className="text-ink text-xs font-bold">{initialsFor(user?.name)}</Text>
+          )}
+        </Pressable>
       </View>
 
       <View className="px-6 pt-4">

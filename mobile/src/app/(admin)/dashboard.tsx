@@ -1,14 +1,26 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CURRENT_ADMIN } from '@/data/current-user';
+import { useAuth } from '@/context/auth-context';
 import { useReports } from '@/context/reports-context';
 
 const PALETTE = ['#A1000B', '#E3A72F', '#3B82F6', '#22C55E', '#9B8B8E', '#8B5CF6'];
 
+function initialsFor(name?: string) {
+  if (!name) return 'A';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function AdminDashboardScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { reports } = useReports();
 
   const total = reports.length;
@@ -33,9 +45,16 @@ export default function AdminDashboardScreen() {
           <Text className="text-white text-xl font-bold">Admin Panel</Text>
           <Text className="text-white/50 text-xs mt-0.5">Facilities Overview</Text>
         </View>
-        <View className="w-10 h-10 rounded-full bg-mustard/60 items-center justify-center">
-          <Text className="text-ink text-xs font-bold">{CURRENT_ADMIN.initials}</Text>
-        </View>
+        <Pressable
+          onPress={() => router.push('/profile')}
+          className="w-10 h-10 rounded-full bg-mustard/60 items-center justify-center overflow-hidden"
+        >
+          {user?.avatar_url ? (
+            <Image source={{ uri: user.avatar_url }} style={{ width: 40, height: 40 }} />
+          ) : (
+            <Text className="text-ink text-xs font-bold">{initialsFor(user?.name)}</Text>
+          )}
+        </Pressable>
       </View>
 
       <ScrollView contentContainerClassName="px-6 py-5" showsVerticalScrollIndicator={false}>

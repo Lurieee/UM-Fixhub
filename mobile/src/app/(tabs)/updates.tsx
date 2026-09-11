@@ -1,23 +1,10 @@
-import { Image, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/context/auth-context';
 import { useAnnouncements } from '@/context/announcements-context';
 
-function initialsFor(name?: string) {
-  if (!name) return 'U';
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 export default function UpdatesScreen() {
-  const { user } = useAuth();
   const { announcements, isLoading } = useAnnouncements();
 
   return (
@@ -27,16 +14,7 @@ export default function UpdatesScreen() {
         contentContainerClassName="px-6 pb-6"
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center justify-between mt-3 mb-5">
-          <Text className="text-ink text-2xl font-bold">Campus Updates</Text>
-          <View className="w-10 h-10 rounded-full bg-mustard/30 items-center justify-center overflow-hidden">
-            {user?.avatar_url ? (
-              <Image source={{ uri: user.avatar_url }} style={{ width: 40, height: 40 }} />
-            ) : (
-              <Text className="text-ink text-xs font-bold">{initialsFor(user?.name)}</Text>
-            )}
-          </View>
-        </View>
+        <Text className="text-ink text-2xl font-bold mt-3 mb-5">Campus Updates</Text>
 
         {isLoading && <Text className="text-ink/50 text-sm">Loading...</Text>}
 

@@ -36,16 +36,12 @@ export default function AdminTabsLayout() {
           options={{ title: 'Reports', tabBarIcon: ({ focused }) => <TabIcon name="file-document-outline" focused={focused} /> }}
         />
         <Tabs.Screen
-          name="team"
-          options={{ title: 'Team', tabBarIcon: ({ focused }) => <TabIcon name="account-group-outline" focused={focused} /> }}
+          name="announcements"
+          options={{ title: 'Announcements', tabBarIcon: ({ focused }) => <TabIcon name="bullhorn-outline" focused={focused} /> }}
         />
         <Tabs.Screen
           name="analytics"
           options={{ title: 'Analytics', tabBarIcon: ({ focused }) => <TabIcon name="chart-bar" focused={focused} /> }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{ title: 'Settings', tabBarIcon: ({ focused }) => <TabIcon name="cog-outline" focused={focused} /> }}
         />
       </Tabs>
     </View>

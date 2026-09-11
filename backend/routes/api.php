@@ -15,6 +15,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -24,7 +25,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reports', [ReportController::class, 'store']);
     Route::get('/reports/{report}', [ReportController::class, 'show']);
     Route::patch('/reports/{report}', [ReportController::class, 'update']);
-    Route::post('/register', [AuthController::class, 'register']);
 
     Route::get('/analytics', [ReportController::class, 'analytics']);
     Route::post('/2fa/generate', [TwoFactorController::class, 'generate']);

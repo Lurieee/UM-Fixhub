@@ -10,6 +10,8 @@ type AnnouncementsContextType = {
   announcements: Announcement[];
   isLoading: boolean;
   refresh: () => Promise<void>;
+  createAnnouncement: (title: string, message: string) => Promise<void>;
+  deleteAnnouncement: (id: string) => Promise<void>;
 };
 
 const AnnouncementsContext = createContext<AnnouncementsContextType | undefined>(undefined);
@@ -35,8 +37,20 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
     else setAnnouncements([]);
   }, [user?.id]);
 
+  const createAnnouncement = async (title: string, message: string) => {
+    await api.post('/announcements', { title, message });
+    await refresh();
+  };
+
+  const deleteAnnouncement = async (id: string) => {
+    await api.delete(`/announcements/${id}`);
+    setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+  };
+
   return (
-    <AnnouncementsContext.Provider value={{ announcements, isLoading, refresh }}>
+    <AnnouncementsContext.Provider
+      value={{ announcements, isLoading, refresh, createAnnouncement, deleteAnnouncement }}
+    >
       {children}
     </AnnouncementsContext.Provider>
   );

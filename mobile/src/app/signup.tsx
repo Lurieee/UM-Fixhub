@@ -50,8 +50,10 @@ export default function SignUpScreen() {
         { text: 'Continue', onPress: () => router.replace('/home') },
       ]);
     } catch (err: any) {
+      console.log('SIGNUP ERROR:', JSON.stringify(err.toJSON ? err.toJSON() : err));
+      console.log('SIGNUP ERROR RESPONSE:', JSON.stringify(err.response?.data));
       const errors = err.response?.data?.errors as Record<string, string[]> | undefined;
-const message = errors ? Object.values(errors)[0]?.[0] : 'Could not create account.';
+      const message = errors ? Object.values(errors)[0]?.[0] : 'Could not create account.';
       showAlert('Sign up failed', message);
     } finally {
       setSubmitting(false);
