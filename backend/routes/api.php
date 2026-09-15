@@ -7,6 +7,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ChatController;
 
 
 Route::post('/2fa/login', [TwoFactorController::class, 'verifyLogin']);
@@ -36,4 +37,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
 
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto']);
+
+    Route::post('/chat', [ChatController::class, 'send']);
 }); 

@@ -12,6 +12,7 @@ import Profile from "./Profile";
 import IssueCategories from "./IssueCategories";
 import SubmissionConfirmation from "./SubmissionConfirmation";
 import AdminPanel from "./AdminPanel";
+import ChatWidget from "./ChatWidget";
 import { currentUser } from "./mockData";
 import api from "./lib/api";
 import { normalizeReport, denormalizeStatus } from "./lib/normalizeReport";
@@ -44,6 +45,7 @@ export default function App() {
   const [route, setRoute] = useState(() => parseRoute(window.location.pathname));
   const [reports, setReports] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [chatDraft, setChatDraft] = useState(null);
   const [lastSubmittedReport, setLastSubmittedReport] = useState(null);
   const [user, setUser] = useState(() => {
     try {
@@ -105,6 +107,13 @@ export default function App() {
 
   const selectCategory = (category) => {
     setSelectedCategory(category);
+    setChatDraft(null);
+    navigate("/report-issue/form");
+  };
+
+  const useChatDraft = (draft) => {
+    setChatDraft(draft);
+    setSelectedCategory(draft.category || "");
     navigate("/report-issue/form");
   };
 
@@ -113,6 +122,7 @@ export default function App() {
     const normalized = normalizeReport(apiReport);
     setReports((items) => [normalized, ...items]);
     setLastSubmittedReport(normalized);
+    setChatDraft(null);
     navigate("/report-submitted");
   };
 
@@ -172,7 +182,7 @@ export default function App() {
     <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10 xl:px-12">
       {route.name === "dashboard" && <Dashboard reports={reports} updates={updates} readNoticeIds={readNoticeIds} onRead={markNoticeAsRead} onNavigate={navigate} />}
       {route.name === "categories" && <IssueCategories onBack={() => navigate("/dashboard")} onSelect={selectCategory} />}
-      {route.name === "report" && <ReportIssue category={selectedCategory} onBack={() => navigate("/report-issue")} onSubmit={submitReport} />}
+      {route.name === "report" && <ReportIssue category={selectedCategory} draft={chatDraft} onBack={() => navigate("/report-issue")} onSubmit={submitReport} />}
       {route.name === "editReport" && <ReportIssue report={reports.find((report) => report.id === route.id)} onBack={() => navigate("/my-reports")} onSubmit={submitReport} />}
       {route.name === "submitted" && <SubmissionConfirmation report={lastSubmittedReport} onDashboard={() => navigate("/dashboard")} onTrack={() => navigate("/my-reports")} />}
       {route.name === "reports" && <MyReports reports={reports} onNavigate={navigate} onDelete={deleteReport} />}
@@ -180,6 +190,7 @@ export default function App() {
       {route.name === "updates" && <div className="mx-auto max-w-xl"><CampusUpdates updates={updates} showAll readNoticeIds={readNoticeIds} onRead={markNoticeAsRead} /></div>}
       {route.name === "profile" && <Profile user={user} reports={reports} onLogout={() => logout("/login")} onUserUpdate={saveUser} />}
     </main>
+    <ChatWidget onUseDraft={useChatDraft} />
   </div>;
 }
 
