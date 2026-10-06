@@ -1,14 +1,17 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { categoryIconName } from '@/data/categories';
 import { useReports } from '@/context/reports-context';
 import { OutlineIcon } from '@/components/outline-icon';
+import { useAppAlert } from '@/components/app-alert';
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Submitted: { bg: 'bg-blue-50', text: 'text-blue-700' },
-  'In Progress': { bg: 'bg-orange-50', text: 'text-orange-700' },
+  'Under Review': { bg: 'bg-orange-50', text: 'text-orange-700' },
+  'Awaiting Confirmation': { bg: 'bg-mustard/25', text: 'text-orange-700' },
   Resolved: { bg: 'bg-green-50', text: 'text-green-700' },
 };
 
@@ -22,7 +25,9 @@ function formatTimestamp(value: string | null) {
 export default function ReportDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getReport } = useReports();
+  const { getReport, updateReport } = useReports();
+  const { showAlert } = useAppAlert();
+  const [saving, setSaving] = useState(false);
 
   const report = getReport(id);
   if (!report) {
@@ -37,18 +42,42 @@ export default function ReportDetailScreen() {
   const steps = [
     { label: 'Submitted', done: true, sub: report.reportedAt },
     {
-      label: 'In Progress',
-      done: report.status === 'In Progress' || report.status === 'Resolved',
-      sub: report.inProgressAt
-        ? `${formatTimestamp(report.inProgressAt)}${report.assignedStaff ? ` · Assigned to ${report.assignedStaff}` : ''}`
-        : '',
+      label: 'Under Review',
+      done: report.status === 'Under Review' || report.status === 'Awaiting Confirmation' || report.status === 'Resolved',
+      sub: formatTimestamp(report.underReviewAt),
     },
     {
-      label: 'Resolved',
-      done: report.status === 'Resolved',
-      sub: report.resolvedAt ? formatTimestamp(report.resolvedAt) : '',
+      label: 'Awaiting Confirmation',
+      done: report.status === 'Awaiting Confirmation' || report.status === 'Resolved',
+      sub: formatTimestamp(report.awaitingConfirmationAt),
     },
+    { label: 'Resolved', done: report.status === 'Resolved', sub: formatTimestamp(report.resolvedAt) },
   ];
+
+  const changeStatus = async (status: 'Resolved' | 'Under Review') => {
+    setSaving(true);
+    try {
+      await updateReport(report.id, { status });
+    } catch (err: any) {
+      showAlert('Failed', err.response?.data?.message || 'Could not update report.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResolve = () => {
+    showAlert('Confirm & Close?', 'Has this issue actually been fixed?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Yes, Resolve', onPress: () => changeStatus('Resolved') },
+    ]);
+  };
+
+  const handleReopen = () => {
+    showAlert('Not Fixed Yet?', 'This will send the report back to the facilities team for more work.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reopen Report', onPress: () => changeStatus('Under Review') },
+    ]);
+  };
 
   return (
     <SafeAreaView style={{ alignItems: 'center' }} className="flex-1 bg-cream">
@@ -88,6 +117,31 @@ export default function ReportDetailScreen() {
 
           <Text className="text-ink/70 text-xs leading-5">{report.description}</Text>
         </View>
+
+        {report.status === 'Awaiting Confirmation' && (
+          <View className="bg-mustard/15 border border-mustard/40 rounded-xl p-4 mb-5">
+            <Text className="text-ink text-sm font-bold">Facilities marked this as fixed</Text>
+            <Text className="text-ink/60 text-xs mt-1 leading-4">
+              Is the issue actually resolved? Confirm to close it, or send it back if it's not fixed yet.
+            </Text>
+            <View className="flex-row gap-2 mt-3">
+              <Pressable
+                onPress={handleResolve}
+                disabled={saving}
+                className="flex-1 bg-maroon rounded-xl py-3 items-center"
+              >
+                <Text className="text-white text-xs font-semibold">{saving ? '...' : 'Confirm & Resolve'}</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleReopen}
+                disabled={saving}
+                className="flex-1 border border-mustard bg-white rounded-xl py-3 items-center"
+              >
+                <Text className="text-orange-700 text-xs font-semibold">Not Fixed — Reopen</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <Text className="text-ink text-sm font-semibold mb-3">Tracking Status</Text>
         <View className="bg-white border border-ink/10 rounded-xl p-4">

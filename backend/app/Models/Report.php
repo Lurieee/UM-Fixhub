@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['user_id', 'title', 'category', 'building', 'room', 'description', 'urgency', 'status', 'photo_path', 'assigned_to'])]
+#[Fillable(['user_id', 'title', 'category', 'building', 'room', 'description', 'urgency', 'status', 'photo_path', 'assigned_to', 'in_progress_at', 'awaiting_confirmation_at', 'resolved_at'])]
 class Report extends Model
 {
     use HasFactory;
@@ -15,6 +15,7 @@ class Report extends Model
 
     protected $casts = [
         'in_progress_at' => 'datetime',
+        'awaiting_confirmation_at' => 'datetime',
         'resolved_at' => 'datetime',
     ];
 
@@ -33,4 +34,3 @@ class Report extends Model
         return config('services.supabase.url') . "/storage/v1/object/public/{$bucket}/{$this->photo_path}";
     }
 }
-

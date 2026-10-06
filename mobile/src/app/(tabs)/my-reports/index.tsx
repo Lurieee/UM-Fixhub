@@ -8,7 +8,8 @@ import { OutlineIcon } from '@/components/outline-icon';
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Submitted: { bg: 'bg-blue-50', text: 'text-blue-700' },
-  'In Progress': { bg: 'bg-orange-50', text: 'text-orange-700' },
+  'Under Review': { bg: 'bg-orange-50', text: 'text-orange-700' },
+  'Awaiting Confirmation': { bg: 'bg-mustard/25', text: 'text-orange-700' },
   Resolved: { bg: 'bg-green-50', text: 'text-green-700' },
 };
 

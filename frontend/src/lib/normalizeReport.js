@@ -1,12 +1,14 @@
 const STATUS_TO_FRONTEND = {
   Submitted: "submitted",
-  "In Progress": "in_progress",
+  "Under Review": "under_review",
+  "Awaiting Confirmation": "awaiting_confirmation",
   Resolved: "resolved",
 };
 
 const STATUS_TO_BACKEND = {
   submitted: "Submitted",
-  in_progress: "In Progress",
+  under_review: "Under Review",
+  awaiting_confirmation: "Awaiting Confirmation",
   resolved: "Resolved",
 };
 
@@ -44,7 +46,8 @@ export function normalizeReport(apiReport) {
     photoUri: apiReport.photo_url || null,
     createdAt: formatDate(apiReport.created_at) || apiReport.created_at,
     submittedAt: apiReport.created_at,
-    inProgressAt: apiReport.in_progress_at || null,
+    underReviewAt: apiReport.in_progress_at || null,
+    awaitingConfirmationAt: apiReport.awaiting_confirmation_at || null,
     resolvedAt: apiReport.resolved_at || null,
   };
 }

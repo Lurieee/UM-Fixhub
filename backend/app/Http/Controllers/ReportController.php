@@ -67,30 +67,106 @@ class ReportController extends Controller
         return response()->json($report);
     }
 
+    // Update status/assignment.
+    // Admin drives Submitted → Under Review → Awaiting Confirmation.
+    // Only the reporting student can close it from Awaiting Confirmation → Resolved,
+    // or reject it back to Under Review if the fix wasn't actually done.
     public function update(Request $request, Report $report)
-{
-    if (! $request->user()->isAdmin()) {
-        return response()->json(['message' => 'Forbidden'], 403);
+    {
+        $user = $request->user();
+        $isOwner = $report->user_id === $user->id;
+
+        if (! $user->isAdmin() && ! $isOwner) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $validated = $request->validate([
+            'status' => ['sometimes', 'string', 'max:30'],
+            'assigned_to' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        if (isset($validated['assigned_to']) && ! $user->isAdmin()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        if (isset($validated['status'])) {
+            if ($user->isAdmin()) {
+                $allowedAdminTransitions = [
+                    'Submitted' => 'Under Review',
+                    'Under Review' => 'Awaiting Confirmation',
+                ];
+
+                if (($allowedAdminTransitions[$report->status] ?? null) !== $validated['status']) {
+                    return response()->json(['message' => 'Invalid status transition for admin.'], 422);
+                }
+            } elseif ($isOwner) {
+                $allowedOwnerTransitions = [
+                    'Awaiting Confirmation' => ['Resolved', 'Under Review'],
+                ];
+
+                if (! in_array($validated['status'], $allowedOwnerTransitions[$report->status] ?? [], true)) {
+                    return response()->json(['message' => 'You can only resolve or reopen a report while it is Awaiting Confirmation.'], 422);
+                }
+            } else {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+
+            if ($validated['status'] === 'Under Review') {
+                if (! $report->in_progress_at) {
+                    $validated['in_progress_at'] = now();
+                }
+                // Reopen path: clear the stale confirmation timestamp so the next
+                // Awaiting Confirmation cycle records its own real time.
+                if ($report->status === 'Awaiting Confirmation') {
+                    $validated['awaiting_confirmation_at'] = null;
+                }
+            }
+            if ($validated['status'] === 'Awaiting Confirmation' && ! $report->awaiting_confirmation_at) {
+                $validated['awaiting_confirmation_at'] = now();
+            }
+            if ($validated['status'] === 'Resolved' && ! $report->resolved_at) {
+                $validated['resolved_at'] = now();
+            }
+        }
+
+        $report->update($validated);
+
+        return response()->json($report);
     }
 
-    $validated = $request->validate([
-        'status' => ['sometimes', 'string', 'max:30'],
-        'assigned_to' => ['sometimes', 'nullable', 'string', 'max:255'],
-    ]);
+    public function analytics(Request $request)
+    {
+        if (! $request->user()->isAdmin()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
 
-    if (isset($validated['status'])) {
-        if ($validated['status'] === 'In Progress' && ! $report->in_progress_at) {
-            $validated['in_progress_at'] = now();
-        }
-        if ($validated['status'] === 'Resolved' && ! $report->resolved_at) {
-            $validated['resolved_at'] = now();
-        }
+        $total = Report::count();
+        $resolved = Report::where('status', 'Resolved')->count();
+        $underReview = Report::where('status', 'Under Review')->count();
+        $awaitingConfirmation = Report::where('status', 'Awaiting Confirmation')->count();
+        $pending = Report::where('status', 'Submitted')->count();
+
+        $byCategory = Report::selectRaw('category, count(*) as count')
+            ->groupBy('category')
+            ->get();
+
+        $last30Days = Report::selectRaw('DATE(created_at) as date, count(*) as count')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        return response()->json([
+            'total' => $total,
+            'resolved' => $resolved,
+            'in_progress' => $underReview,
+            'awaiting_confirmation' => $awaitingConfirmation,
+            'pending' => $pending,
+            'resolution_rate' => $total ? round(($resolved / $total) * 100) : 0,
+            'by_category' => $byCategory,
+            'trend' => $last30Days,
+        ]);
     }
-
-    $report->update($validated);
-
-    return response()->json($report);
-}
 
     private function uploadPhoto($file): string
     {
@@ -106,37 +182,5 @@ class ReportController extends Controller
           ->post($url);
 
         return $filename;
-    }
-
-    public function analytics(Request $request)
-    {
-    if (! $request->user()->isAdmin()) {
-        return response()->json(['message' => 'Forbidden'], 403);
-    }
-
-    $total = Report::count();
-    $resolved = Report::where('status', 'Resolved')->count();
-    $inProgress = Report::where('status', 'In Progress')->count();
-    $pending = Report::where('status', 'Submitted')->count();
-
-    $byCategory = Report::selectRaw('category, count(*) as count')
-        ->groupBy('category')
-        ->get();
-
-    $last30Days = Report::selectRaw('DATE(created_at) as date, count(*) as count')
-        ->where('created_at', '>=', now()->subDays(30))
-        ->groupBy('date')
-        ->orderBy('date')
-        ->get();
-
-    return response()->json([
-        'total' => $total,
-        'resolved' => $resolved,
-        'in_progress' => $inProgress,
-        'pending' => $pending,
-        'resolution_rate' => $total ? round(($resolved / $total) * 100) : 0,
-        'by_category' => $byCategory,
-        'trend' => $last30Days,
-    ]);
     }
 }

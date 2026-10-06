@@ -16,10 +16,9 @@ function formatTimestamp(value: string | null) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-const NEXT_STATUS: Record<ReportStatus, ReportStatus | null> = {
-  Submitted: 'In Progress',
-  'In Progress': 'Resolved',
-  Resolved: null,
+const NEXT_STATUS: Partial<Record<ReportStatus, { next: ReportStatus; label: string }>> = {
+  Submitted: { next: 'Under Review', label: 'Mark as Under Review' },
+  'Under Review': { next: 'Awaiting Confirmation', label: 'Mark as Awaiting Confirmation' },
 };
 
 export default function AdminReportDetailScreen() {
@@ -45,7 +44,7 @@ export default function AdminReportDetailScreen() {
   }
 
   const assignmentChanged = assignedStaff !== (report.assignedStaff ?? '');
-  const nextStatus = NEXT_STATUS[report.status];
+  const nextStep = NEXT_STATUS[report.status];
 
   const saveAssignment = async () => {
     setSaving(true);
@@ -59,10 +58,10 @@ export default function AdminReportDetailScreen() {
   };
 
   const advanceStatus = async () => {
-    if (!nextStatus) return;
+    if (!nextStep) return;
     setSaving(true);
     try {
-      await updateReport(report.id, { status: nextStatus });
+      await updateReport(report.id, { status: nextStep.next });
     } catch (err: any) {
       showAlert('Update failed', err.response?.data?.message || 'Could not update status.');
     } finally {
@@ -73,9 +72,14 @@ export default function AdminReportDetailScreen() {
   const steps = [
     { label: 'Submitted', done: true, sub: report.reportedAt },
     {
-      label: 'In Progress',
-      done: report.status === 'In Progress' || report.status === 'Resolved',
-      sub: formatTimestamp(report.inProgressAt),
+      label: 'Under Review',
+      done: report.status === 'Under Review' || report.status === 'Awaiting Confirmation' || report.status === 'Resolved',
+      sub: formatTimestamp(report.underReviewAt),
+    },
+    {
+      label: 'Awaiting Confirmation',
+      done: report.status === 'Awaiting Confirmation' || report.status === 'Resolved',
+      sub: formatTimestamp(report.awaitingConfirmationAt),
     },
     { label: 'Resolved', done: report.status === 'Resolved', sub: formatTimestamp(report.resolvedAt) },
   ];
@@ -159,14 +163,19 @@ export default function AdminReportDetailScreen() {
             </Pressable>
           )}
 
-          {nextStatus && (
+          {nextStep && (
             <Pressable onPress={advanceStatus} disabled={saving} className="bg-maroon rounded-xl py-3.5 items-center">
               <Text className="text-white font-semibold text-sm">
-                {saving ? 'Updating...' : `Mark as ${nextStatus}`}
+                {saving ? 'Updating...' : nextStep.label}
               </Text>
             </Pressable>
           )}
-          {!nextStatus && (
+          {report.status === 'Awaiting Confirmation' && (
+            <View className="bg-mustard/15 rounded-xl py-3.5 items-center">
+              <Text className="text-ink/70 text-xs font-semibold">Waiting for the student to confirm and close this report.</Text>
+            </View>
+          )}
+          {report.status === 'Resolved' && (
             <View className="bg-green-50 rounded-xl py-3.5 items-center">
               <Text className="text-green-700 font-semibold text-sm">Report Resolved</Text>
             </View>

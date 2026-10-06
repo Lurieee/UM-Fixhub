@@ -127,22 +127,16 @@ export default function App() {
   };
 
   const updateReport = async (id, status) => {
-    try {
-      const { data } = await api.patch(`/reports/${id}`, { status: denormalizeStatus(status) });
-      setReports((items) => items.map((item) => (item.id === id ? normalizeReport(data) : item)));
-    } catch (err) {
-      console.error("Failed to update report:", err);
-    }
-  };
+  const { data } = await api.patch(`/reports/${id}`, { status: denormalizeStatus(status) });
+  setReports((items) => items.map((item) => (item.id === id ? normalizeReport(data) : item)));
+  return data;
+};
 
   const updateAssignment = async (id, assignedTo) => {
-    try {
-      const { data } = await api.patch(`/reports/${id}`, { assigned_to: assignedTo });
-      setReports((items) => items.map((item) => (item.id === id ? normalizeReport(data) : item)));
-    } catch (err) {
-      console.error("Failed to update assignment:", err);
-    }
-  };
+  const { data } = await api.patch(`/reports/${id}`, { assigned_to: assignedTo });
+  setReports((items) => items.map((item) => (item.id === id ? normalizeReport(data) : item)));
+  return data;
+};
 
   const deleteReport = (id) => {
     // No DELETE endpoint on the backend by design — this only removes it from the local view.
@@ -186,7 +180,7 @@ export default function App() {
       {route.name === "editReport" && <ReportIssue report={reports.find((report) => report.id === route.id)} onBack={() => navigate("/my-reports")} onSubmit={submitReport} />}
       {route.name === "submitted" && <SubmissionConfirmation report={lastSubmittedReport} onDashboard={() => navigate("/dashboard")} onTrack={() => navigate("/my-reports")} />}
       {route.name === "reports" && <MyReports reports={reports} onNavigate={navigate} onDelete={deleteReport} />}
-      {route.name === "reportDetail" && <ReportDetail report={reports.find((report) => report.id === route.id)} onBack={() => navigate("/my-reports")} />}
+      {route.name === "reportDetail" && <ReportDetail report={reports.find((report) => report.id === route.id)} onBack={() => navigate("/my-reports")} onUpdateStatus={updateReport} />}
       {route.name === "updates" && <div className="mx-auto max-w-xl"><CampusUpdates updates={updates} showAll readNoticeIds={readNoticeIds} onRead={markNoticeAsRead} /></div>}
       {route.name === "profile" && <Profile user={user} reports={reports} onLogout={() => logout("/login")} onUserUpdate={saveUser} />}
     </main>

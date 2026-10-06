@@ -1,4 +1,4 @@
-export type ReportStatus = 'Submitted' | 'In Progress' | 'Resolved';
+export type ReportStatus = 'Submitted' | 'Under Review' | 'Awaiting Confirmation' | 'Resolved';
 export type Urgency = 'Low' | 'Medium' | 'High';
 
 export type Report = {
@@ -15,7 +15,8 @@ export type Report = {
   reportedBy: string;
   assignedStaff: string | null;
   photoUri: string | null;
-  inProgressAt: string | null;
+  underReviewAt: string | null;
+  awaitingConfirmationAt: string | null;
   resolvedAt: string | null;
 };
 
@@ -41,7 +42,8 @@ export function normalizeReport(apiReport: any): Report {
     reportedBy: apiReport.user?.name ?? 'You',
     assignedStaff: apiReport.assigned_to || null,
     photoUri: apiReport.photo_url || null,
-    inProgressAt: apiReport.in_progress_at || null,
+    underReviewAt: apiReport.in_progress_at || null,
+    awaitingConfirmationAt: apiReport.awaiting_confirmation_at || null,
     resolvedAt: apiReport.resolved_at || null,
   };
 }

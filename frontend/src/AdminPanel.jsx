@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, BellRing, ChevronDown, Download, FileText, Grid2X2, Megaphone, Plus, Search, Trash2, Users, X, XCircle } from "lucide-react";
+import { Activity, BarChart3, BellRing, CheckCircle2, ChevronDown, Download, FileText, Grid2X2, LockKeyhole, Megaphone, Plus, Search, Settings, SlidersHorizontal, Trash2, Users, X, XCircle } from "lucide-react";
 import Profile from "./Profile";
 import api from "./lib/api";
 import { normalizeAnnouncement } from "./lib/normalizeAnnouncement";
@@ -9,15 +9,29 @@ const navigation = [
 ];
 const reportRows = [
   { id: "#REP-1024", title: "Broken Elevator", place: "DPT Block B, Level 4", category: "Electrical", time: "Today · 10:24 AM", priority: "Urgent", status: "Pending", tone: "red" },
-  { id: "#REP-1023", title: "Water Leak - Ceiling", place: "Science Lab 302, North Wing", category: "Plumbing", time: "Today · 09:15 AM", priority: "Normal", status: "In Progress", tone: "blue" },
+  { id: "#REP-1023", title: "Water Leak - Ceiling", place: "Science Lab 302, North Wing", category: "Plumbing", time: "Today · 09:15 AM", priority: "Normal", status: "Under Review", tone: "blue" },
   { id: "#REP-1021", title: "HVAC Filter Replacement", place: "Auditorium Main Hall", category: "AC/Heat", time: "Yesterday · 04:45 PM", priority: "Normal", status: "Resolved", tone: "green" },
 ];
 
 function ActionButton({ children, secondary = false, onClick }) { return <button onClick={onClick} className={`admin-action ${secondary ? "admin-action-secondary" : ""}`}>{children}</button>; }
 function Badge({ children, tone = "slate" }) { return <span className={`admin-badge admin-badge-${tone}`}>{children}</span>; }
-function Status({ children }) { const tone = children === "Pending" ? "red" : children === "In Progress" ? "blue" : "green"; return <span className={`admin-status admin-status-${tone}`}><i />{children}</span>; }
+function Status({ children }) { const tone = children === "Pending" ? "red" : children === "Under Review" ? "blue" : children === "Awaiting Confirmation" ? "orange" : "green"; return <span className={`admin-status admin-status-${tone}`}><i />{children}</span>; }
 
-function AdminSidebar({ page, onPage }) { return <aside className="admin-sidebar"><div className="admin-sidebar-brand"><span><Grid2X2 /></span><b>AdminPanel</b></div><nav>{navigation.map(([key, label, Icon]) => <button key={key} onClick={() => onPage(key)} className={page === key ? "active" : ""}><Icon />{label}</button>)}</nav><div className="admin-user"><span>AS</span><div><b>Admin User</b><small>Facilities Lead</small></div></div></aside>; }
+function initialsFor(name) {
+  if (!name) return "A";
+  return name.trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function AdminSidebar({ page, onPage, user }) {
+  return <aside className="admin-sidebar">
+    <div className="admin-sidebar-brand"><span><Grid2X2 /></span><b>AdminPanel</b></div>
+    <nav>{navigation.map(([key, label, Icon]) => <button key={key} onClick={() => onPage(key)} className={page === key ? "active" : ""}><Icon />{label}</button>)}</nav>
+    <button type="button" onClick={() => onPage("profile")} className="admin-user" style={{ cursor: "pointer", border: "none", textAlign: "left" }}>
+      <span>{initialsFor(user?.name)}</span>
+      <div><b>{user?.name || "Admin"}</b><small>{user?.email}</small></div>
+    </button>
+  </aside>;
+}
 function AdminHeader({ title, subtitle, children }) { return <header className="admin-header"><div><h1>{title}</h1><p>{subtitle}</p></div><div className="admin-header-actions">{children}</div></header>; }
 function StatCard({ label, value, detail, tone = "green" }) { return <article className="admin-stat"><span>{label}</span><div><b>{value}</b>{detail && <Badge tone={tone}>{detail}</Badge>}</div></article>; }
 
@@ -70,7 +84,12 @@ function LiveDonutChart({ byCategory }) {
   </section>;
 }
 
-const STATUS_DISPLAY = { submitted: "Pending", in_progress: "In Progress", resolved: "Resolved" };
+const STATUS_DISPLAY = {
+  submitted: "Pending",
+  under_review: "Under Review",
+  awaiting_confirmation: "Awaiting Confirmation",
+  resolved: "Resolved",
+};
 
 function formatTimestamp(value) {
   if (!value) return null;
@@ -97,37 +116,64 @@ function userReportRows(reports) {
       photoUri: report.photoUri,
       category,
       submittedAt: report.createdAt,
-      inProgressAt: report.inProgressAt,
+      underReviewAt: report.underReviewAt,
+      awaitingConfirmationAt: report.awaitingConfirmationAt,
       resolvedAt: report.resolvedAt,
       time: formatTimestamp(report.createdAt) || "Today",
       priority: status === "Pending" ? "Urgent" : "Normal",
       status,
-      tone: status === "Resolved" ? "green" : status === "In Progress" ? "blue" : "red",
+      tone: status === "Resolved" ? "green" : status === "Under Review" ? "blue" : status === "Awaiting Confirmation" ? "orange" : "red",
     };
   });
 }
 
+const ADMIN_NEXT_STATUS = {
+  submitted: { next: "under_review", label: "Mark as Under Review" },
+  under_review: { next: "awaiting_confirmation", label: "Mark as Awaiting Confirmation" },
+};
+
 function ReportDetailModal({ report, onClose, onUpdateStatus, onUpdateAssignment }) {
   const [assignedTo, setAssignedTo] = useState(report?.assignedTo || "");
   const [localStatus, setLocalStatus] = useState(report?.rawStatus);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (report) {
       setAssignedTo(report.assignedTo || "");
       setLocalStatus(report.rawStatus);
+      setError("");
     }
   }, [report]);
 
   if (!report) return null;
 
-  const advance = () => {
-    const next = localStatus === "submitted" ? "in_progress" : "resolved";
-    onUpdateStatus?.(report.rawId, next);
-    setLocalStatus(next);
+  const advance = async () => {
+    const step = ADMIN_NEXT_STATUS[localStatus];
+    if (!step || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await onUpdateStatus?.(report.rawId, step.next);
+      setLocalStatus(step.next);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not update status. Try refreshing and try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const saveAssignment = () => {
-    if (assignedTo !== (report.assignedTo || "")) onUpdateAssignment?.(report.rawId, assignedTo);
+  const saveAssignment = async () => {
+    if (assignedTo === (report.assignedTo || "") || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await onUpdateAssignment?.(report.rawId, assignedTo);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not save assignment.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cancelAssignment = () => {
@@ -135,6 +181,7 @@ function ReportDetailModal({ report, onClose, onUpdateStatus, onUpdateAssignment
   };
 
   const assignmentChanged = assignedTo !== (report.assignedTo || "");
+  const nextStep = ADMIN_NEXT_STATUS[localStatus];
 
   return <div className="admin-modal-overlay" onClick={onClose}>
     <div className="admin-modal" onClick={(event) => event.stopPropagation()}>
@@ -153,13 +200,18 @@ function ReportDetailModal({ report, onClose, onUpdateStatus, onUpdateAssignment
         <div className={`admin-timeline-step ${localStatus ? "done" : ""}`}>
           <i /><div><b>Submitted</b><small>{formatTimestamp(report.submittedAt) || "—"}</small></div>
         </div>
-        <div className={`admin-timeline-step ${localStatus === "in_progress" || localStatus === "resolved" ? "done" : ""}`}>
-          <i /><div><b>In Progress</b><small>{formatTimestamp(report.inProgressAt) || "—"}{assignedTo ? ` · Assigned to ${assignedTo}` : ""}</small></div>
+        <div className={`admin-timeline-step ${["under_review", "awaiting_confirmation", "resolved"].includes(localStatus) ? "done" : ""}`}>
+          <i /><div><b>Under Review</b><small>{formatTimestamp(report.underReviewAt) || "—"}{assignedTo ? ` · Assigned to ${assignedTo}` : ""}</small></div>
+        </div>
+        <div className={`admin-timeline-step ${["awaiting_confirmation", "resolved"].includes(localStatus) ? "done" : ""}`}>
+          <i /><div><b>Awaiting Confirmation</b><small>{formatTimestamp(report.awaitingConfirmationAt) || "—"}</small></div>
         </div>
         <div className={`admin-timeline-step ${localStatus === "resolved" ? "done" : ""}`}>
           <i /><div><b>Resolved</b><small>{formatTimestamp(report.resolvedAt) || "—"}</small></div>
         </div>
       </div>
+
+      {error && <p style={{ color: "#b40012", fontSize: "0.8rem", fontWeight: 700, marginBottom: 12 }}>{error}</p>}
 
       <div className="admin-modal-actions">
         <label className="admin-modal-field">
@@ -173,14 +225,16 @@ function ReportDetailModal({ report, onClose, onUpdateStatus, onUpdateAssignment
           />
         </label>
         {assignmentChanged && <div className="admin-modal-buttons">
-          <button type="button" className="admin-action admin-action-secondary" onClick={cancelAssignment}>Cancel</button>
-          <button type="button" className="admin-action" onClick={saveAssignment}>Save Assignment</button>
+          <button type="button" className="admin-action admin-action-secondary" onClick={cancelAssignment} disabled={saving}>Cancel</button>
+          <button type="button" className="admin-action" onClick={saveAssignment} disabled={saving}>{saving ? "Saving..." : "Save Assignment"}</button>
         </div>}
       </div>
 
-      {localStatus !== "resolved" && <button type="button" className="admin-action admin-advance-button" onClick={advance}>
-        {localStatus === "submitted" ? "Mark as In Progress" : "Mark as Resolved"}
+      {nextStep && <button type="button" className="admin-action admin-advance-button" onClick={advance} disabled={saving}>
+        {saving ? "Updating..." : nextStep.label}
       </button>}
+      {localStatus === "awaiting_confirmation" && <p className="admin-empty-note" style={{ marginTop: 12 }}>Waiting for the student to confirm and close this report.</p>}
+      {localStatus === "resolved" && <div className="admin-modal-buttons" style={{ justifyContent: "center", marginTop: 12 }}><span style={{ color: "#15b985", fontWeight: 700, fontSize: "0.85rem" }}>Report Resolved</span></div>}
     </div>
   </div>;
 }
@@ -188,17 +242,16 @@ function ReportDetailModal({ report, onClose, onUpdateStatus, onUpdateAssignment
 function LiveDashboardPage({ reports, onPage, onOpenReport }) {
   const rows = userReportRows(reports);
   const pending = rows.filter((row) => row.status === "Pending").length;
-  const active = rows.filter((row) => row.status === "In Progress").length;
+  const active = rows.filter((row) => row.status === "Under Review" || row.status === "Awaiting Confirmation").length;
   const resolved = rows.filter((row) => row.status === "Resolved").length;
-  return <><AdminHeader title="Facilities Overview" subtitle="Live overview of reports submitted by UM FixHub users.">
-    <ActionButton onClick={() => onPage("reports")}><Plus />View All Reports</ActionButton></AdminHeader><div className="admin-content"><div className="admin-stats"><StatCard label="Total Reports" value={rows.length} detail="Live data" /><StatCard label="Pending" value={pending} detail={pending ? "Needs attention" : "All clear"} tone="red" /><StatCard label="In Progress" value={active} detail="Active work" /><StatCard label="Resolved" value={resolved} detail={`${rows.length ? Math.round((resolved / rows.length) * 100) : 0}% Rate`} /></div><div className="admin-dashboard-grid"><section><div className="admin-section-heading"><h2>🚨 High Priority Alerts</h2><button onClick={() => onPage("reports")}>View All</button></div><div className="admin-alerts">{rows.filter((row) => row.status !== "Resolved").slice(0, 3).map((row) => <article key={row.id} className={`admin-alert ${row.tone === "blue" ? "blue" : ""}`} onClick={() => onOpenReport(row.rawId)} style={{ cursor: "pointer" }}><span>{row.tone === "blue" ? <BellRing /> : <XCircle />}</span><div><b>{row.title}</b><p>{row.place}</p></div><aside><Badge tone={row.tone}>{row.priority}</Badge><small>{row.time}</small></aside></article>)}</div></section><LiveCategoryChart rows={rows} /></div><MaintenanceTable rows={rows.slice(0, 5)} onOpenReport={onOpenReport} /></div></>;
+  return <><AdminHeader title="Facilities Overview" subtitle="Live overview of reports submitted by UM FixHub users."><ActionButton onClick={() => onPage("reports")}><Plus />View All Reports</ActionButton></AdminHeader><div className="admin-content"><div className="admin-stats"><StatCard label="Total Reports" value={rows.length} detail="Live data"/><StatCard label="Pending" value={pending} detail={pending ? "Needs attention" : "All clear"} tone="red"/><StatCard label="In Progress" value={active} detail="Active work"/><StatCard label="Resolved" value={resolved} detail={`${rows.length ? Math.round((resolved / rows.length) * 100) : 0}% Rate`}/></div><div className="admin-dashboard-grid"><section><div className="admin-section-heading"><h2>🚨 High Priority Alerts</h2><button onClick={() => onPage("reports")}>View All</button></div><div className="admin-alerts">{rows.filter((row) => row.status !== "Resolved").slice(0, 3).map((row) => <article key={row.id} className={`admin-alert ${row.tone === "blue" ? "blue" : ""}`} onClick={() => onOpenReport(row.rawId)} style={{ cursor: "pointer" }}><span>{row.tone === "blue" ? <BellRing /> : <XCircle />}</span><div><b>{row.title}</b><p>{row.place}</p></div><aside><Badge tone={row.tone}>{row.priority}</Badge><small>{row.time}</small></aside></article>)}</div></section><LiveCategoryChart rows={rows} /></div><MaintenanceTable rows={rows.slice(0, 5)} onOpenReport={onOpenReport} /></div></>;
 }
 
 function LiveReportsPage({ reports, onOpenReport }) {
   const [query, setQuery] = useState("");
   const rows = userReportRows(reports);
   const filtered = rows.filter((report) => `${report.id} ${report.title} ${report.place}`.toLowerCase().includes(query.toLowerCase()));
-  return <><AdminHeader title="All Facility Reports" subtitle="Live maintenance reports submitted by UM FixHub users. Click a row to view and manage."></AdminHeader><div className="admin-content"><section className="admin-filterbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search reports by ID, location or keyword..." /></label><button>All Categories <ChevronDown /></button><button>All Status <ChevronDown /></button></section><MaintenanceTable rows={filtered} onOpenReport={onOpenReport} /><p className="admin-pagination-note">Showing {filtered.length} of {rows.length} user reports</p></div></>;
+  return <><AdminHeader title="All Facility Reports" subtitle="Live maintenance reports submitted by UM FixHub users. Click a row to view and manage." /><div className="admin-content"><section className="admin-filterbar"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search reports by ID, location or keyword..." /></label><button>All Categories <ChevronDown /></button><button>All Status <ChevronDown /></button></section><MaintenanceTable rows={filtered} onOpenReport={onOpenReport} /><p className="admin-pagination-note">Showing {filtered.length} of {rows.length} user reports</p></div></>;
 }
 
 function LiveAnalyticsPage() {
@@ -214,7 +267,7 @@ function LiveAnalyticsPage() {
   if (error) return <><AdminHeader title="Analytics Overview" subtitle="Metrics calculated from your reports." /><div className="admin-content"><p className="admin-empty-note">{error}</p></div></>;
   if (!analytics) return <><AdminHeader title="Analytics Overview" subtitle="Metrics calculated from your reports." /><div className="admin-content"><p className="admin-empty-note">Loading analytics...</p></div></>;
 
-  return <><AdminHeader title="Analytics Overview" subtitle="Metrics calculated from your reports."><ActionButton secondary onClick={() => api.get("/analytics").then(({ data }) => setAnalytics(data))}><Download />Refresh</ActionButton></AdminHeader><div className="admin-content"><div className="admin-stats"><StatCard label="Total Reports" value={analytics.total} detail="Live" /><StatCard label="Resolved" value={analytics.resolved} detail={`${analytics.resolution_rate}% resolved`} /><StatCard label="In Progress" value={analytics.in_progress} detail="Active work" tone="blue" /><StatCard label="Pending" value={analytics.pending} detail="Needs attention" tone="red" /></div><div className="admin-analytics-grid"><LiveTrendChart trend={analytics.trend} /><LiveDonutChart byCategory={analytics.by_category} /></div></div></>;
+  return <><AdminHeader title="Analytics Overview" subtitle="Metrics calculated from your reports."><ActionButton secondary onClick={() => api.get("/analytics").then(({ data }) => setAnalytics(data))}><Download />Refresh</ActionButton></AdminHeader><div className="admin-content"><div className="admin-stats"><StatCard label="Total Reports" value={analytics.total} detail="Live"/><StatCard label="Resolved" value={analytics.resolved} detail={`${analytics.resolution_rate}% resolved`}/><StatCard label="Under Review" value={analytics.in_progress} detail="Active work" tone="blue"/><StatCard label="Awaiting Confirmation" value={analytics.awaiting_confirmation} detail="Pending student" tone="orange"/><StatCard label="Pending" value={analytics.pending} detail="Needs attention" tone="red"/></div><div className="admin-analytics-grid"><LiveTrendChart trend={analytics.trend} /><LiveDonutChart byCategory={analytics.by_category} /></div></div></>;
 }
 
 function AnnouncementsPage() {
@@ -281,9 +334,9 @@ function AnnouncementsPage() {
         : announcements.length === 0
           ? <p className="admin-empty-note">No announcements posted yet.</p>
           : <div className="admin-announcement-list">{announcements.map((item) => <div key={item.id} className="admin-announcement-item">
-            <div><b>{item.title}</b><p>{item.body}</p><small>{item.date}</small></div>
-            <button onClick={() => remove(item.id)} aria-label="Delete announcement" className="admin-icon-button"><Trash2 /></button>
-          </div>)}</div>}
+              <div><b>{item.title}</b><p>{item.body}</p><small>{item.date}</small></div>
+              <button onClick={() => remove(item.id)} aria-label="Delete announcement" className="admin-icon-button"><Trash2 /></button>
+            </div>)}</div>}
     </section>
   </div></>;
 }
@@ -304,7 +357,7 @@ export default function AdminPanel({ reports, user, onUpdateStatus, onUpdateAssi
   }[page];
 
   return <div className="admin-app">
-    <AdminSidebar page={page} onPage={setPage} />
+    <AdminSidebar page={page} onPage={setPage} user={user} />
     <main className="admin-main">{pageComponent}</main>
     <ReportDetailModal
       report={selectedReport}
