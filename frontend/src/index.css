@@ -1861,3 +1861,123 @@ footer#support .auth-brand::after {
     margin-top: 6px;
   }
 }
+
+.admin-announcements-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .admin-announcements-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-inline-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: -3px;
+  margin-right: 8px;
+  color: #b40012;
+}
+
+.admin-announcement-form {
+  display: grid;
+  gap: 16px;
+  padding: 4px 20px 20px;
+}
+
+.admin-announcement-form .admin-assign-input {
+  max-width: none;
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  border-radius: 10px;
+}
+
+.admin-announcement-textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.admin-announcement-error {
+  color: #b40012;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-announcement-success {
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-announcement-list {
+  display: grid;
+  gap: 12px;
+  padding: 4px 20px 20px;
+}
+
+.admin-announcement-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.admin-announcement-item:hover {
+  border-color: #fecaca;
+  box-shadow: 0 4px 14px rgba(180, 0, 18, 0.06);
+}
+
+.admin-announcement-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fef2f2;
+  display: grid;
+  place-items: center;
+}
+
+.admin-announcement-icon .admin-inline-icon {
+  margin: 0;
+}
+
+.admin-announcement-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-announcement-body b {
+  display: block;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.admin-announcement-body p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 4px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.admin-announcement-body small {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}

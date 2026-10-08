@@ -6,7 +6,7 @@ export default function CampusUpdates({ updates, onViewAll, showAll = false, rea
   const [selectedNotice, setSelectedNotice] = useState(null);
 
   useEffect(() => {
-    const closeOnEscape = (event) => event.key === "Escape" && setSelectedNotice(null);
+    const closeOnEscape =  (event) => event.key === "Escape" && setSelectedNotice(null);
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, []);

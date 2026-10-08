@@ -277,6 +277,7 @@ function AnnouncementsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [justPosted, setJustPosted] = useState(false);
 
   const load = () => {
     api.get("/announcements")
@@ -295,6 +296,8 @@ function AnnouncementsPage() {
       await api.post("/announcements", { title, message });
       setTitle("");
       setMessage("");
+      setJustPosted(true);
+      setTimeout(() => setJustPosted(false), 2500);
       load();
     } catch (err) {
       setError(err.response?.data?.message || "Could not post announcement.");
@@ -303,7 +306,8 @@ function AnnouncementsPage() {
     }
   };
 
-  const remove = async (id) => {
+  const remove = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? Students will no longer see this.`)) return;
     try {
       await api.delete(`/announcements/${id}`);
       setAnnouncements((items) => items.filter((item) => item.id !== id));
@@ -313,31 +317,39 @@ function AnnouncementsPage() {
   };
 
   return <><AdminHeader title="Announcements" subtitle="Post campus-wide updates that students see on their dashboard." /><div className="admin-content">
-    <section className="admin-card">
-      <div className="admin-card-title"><h2>New Announcement</h2></div>
-      <form onSubmit={submit} className="admin-announcement-form">
-        <label className="admin-modal-field"><span>Title</span>
-          <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Water Main Repairs — North Dorms" className="admin-assign-input" />
-        </label>
-        <label className="admin-modal-field"><span>Message</span>
-          <textarea required value={message} onChange={(e) => setMessage(e.target.value)} rows={3} placeholder="Details students should know..." className="admin-assign-input admin-announcement-textarea" />
-        </label>
-        {error && <p className="admin-announcement-error">{error}</p>}
-        <button type="submit" disabled={submitting} className="admin-action">{submitting ? "Posting..." : "Post Announcement"}</button>
-      </form>
-    </section>
+    <div className="admin-announcements-grid">
+      <section className="admin-card">
+        <div className="admin-card-title"><h2><Megaphone className="admin-inline-icon" />New Announcement</h2></div>
+        <form onSubmit={submit} className="admin-announcement-form">
+          <label className="admin-modal-field"><span>Title</span>
+            <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Water Main Repairs — North Dorms" className="admin-assign-input" />
+          </label>
+          <label className="admin-modal-field"><span>Message</span>
+            <textarea required value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder="Details students should know..." className="admin-assign-input admin-announcement-textarea" />
+          </label>
+          {error && <p className="admin-announcement-error">{error}</p>}
+          {justPosted && <p className="admin-announcement-success"><CheckCircle2 className="admin-inline-icon" />Posted — students will see it now.</p>}
+          <button type="submit" disabled={submitting} className="admin-action">{submitting ? "Posting..." : "Post Announcement"}</button>
+        </form>
+      </section>
 
-    <section className="admin-card">
-      <div className="admin-card-title"><h2>Posted Announcements</h2></div>
-      {loading
-        ? <p className="admin-empty-note">Loading...</p>
-        : announcements.length === 0
-          ? <p className="admin-empty-note">No announcements posted yet.</p>
-          : <div className="admin-announcement-list">{announcements.map((item) => <div key={item.id} className="admin-announcement-item">
-              <div><b>{item.title}</b><p>{item.body}</p><small>{item.date}</small></div>
-              <button onClick={() => remove(item.id)} aria-label="Delete announcement" className="admin-icon-button"><Trash2 /></button>
-            </div>)}</div>}
-    </section>
+      <section className="admin-card">
+        <div className="admin-card-title"><h2>Posted Announcements</h2><Badge>{announcements.length}</Badge></div>
+        {loading
+          ? <p className="admin-empty-note">Loading...</p>
+          : announcements.length === 0
+            ? <p className="admin-empty-note">No announcements posted yet. Create one to notify students.</p>
+            : <div className="admin-announcement-list">{announcements.map((item) => <div key={item.id} className="admin-announcement-item">
+                <span className="admin-announcement-icon"><Megaphone className="admin-inline-icon" /></span>
+                <div className="admin-announcement-body">
+                  <b>{item.title}</b>
+                  <p>{item.body}</p>
+                  <small>{item.date}</small>
+                </div>
+                <button onClick={() => remove(item.id, item.title)} aria-label="Delete announcement" className="admin-icon-button"><Trash2 /></button>
+              </div>)}</div>}
+      </section>
+    </div>
   </div></>;
 }
 
