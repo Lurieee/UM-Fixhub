@@ -40,7 +40,12 @@ export default function LoginScreen() {
         router.replace(destination);
       }
     } catch (err: any) {
-      showAlert('Login failed', err.response?.data?.message || 'Invalid email or password.');
+      showAlert(
+  'Login failed',
+  err.response
+    ? err.response.data?.message || 'Invalid email or password.'
+    : 'Cannot reach the server. Check your Wi-Fi and that the backend is running.'
+);
     } finally {
       setSubmitting(false);
     }

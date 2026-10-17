@@ -18,23 +18,39 @@ export default function ChatWidget({ onUseDraft }) {
   }, [messages, open]);
 
   const send = async () => {
-    const text = input.trim();
-    if (!text || sending) return;
+  const text = input.trim();
+  if (!text || sending) return;
 
-    const history = messages.map((m) => ({ role: m.role, text: m.text }));
-    setMessages((prev) => [...prev, { role: "user", text }]);
-    setInput("");
-    setSending(true);
+  // Skip the greeting (index 0) and error bubbles so history starts with a user turn
+  const history = messages
+    .filter((m, i) => i > 0 && !m.error)
+    .map((m) => ({ role: m.role, text: m.text }));
 
-    try {
-      const { data } = await api.post("/chat", { message: text, history });
-      setMessages((prev) => [...prev, { role: "model", text: data.reply, draft: data.draft || null }]);
-    } catch (err) {
-      setMessages((prev) => [...prev, { role: "model", text: "Sorry, something went wrong. Try again." }]);
-    } finally {
-      setSending(false);
-    }
-  };
+  setMessages((prev) => [...prev, { role: "user", text }]);
+  setInput("");
+  setSending(true);
+
+  try {
+    const { data } = await api.post("/chat", { message: text, history });
+    setMessages((prev) => [
+      ...prev,
+      { role: "model", text: data.reply || "I didn't get a response. Try rephrasing your question.", draft: data.draft || null },
+    ]);
+  } catch (err) {
+    console.error("Chat error:", err.response?.status, err.response?.data || err.message);
+    const status = err.response?.status;
+    const reason = !err.response
+      ? "I can't reach the server. Check your connection."
+      : status === 401
+        ? "Your session expired. Please log in again."
+        : status === 429
+          ? "Too many messages. Wait a moment and try again."
+          : "Something went wrong on my end. Try again in a moment.";
+    setMessages((prev) => [...prev, { role: "model", text: reason, error: true }]);
+  } finally {
+    setSending(false);
+  }
+};
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {

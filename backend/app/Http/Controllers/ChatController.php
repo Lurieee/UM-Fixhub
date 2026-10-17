@@ -10,6 +10,8 @@ class ChatController extends Controller
 {
     private const MODEL = 'gemini-3.6-flash';
 
+    private const MAX_TOOL_ROUNDS = 3;
+
     private const SYSTEM_PROMPT = <<<'EOT'
 You are the UM FixHub campus assistant, a helpful guide for students and staff at the University of Mindanao facilities reporting app.
 
@@ -58,25 +60,45 @@ EOT;
     }
 
     private function callGemini(array $contents): array
-{
-    try {
-        $response = Http::timeout(15)
-            ->connectTimeout(5)
-            ->post(
-                'https://generativelanguage.googleapis.com/v1beta/models/'.self::MODEL.':generateContent?key='.config('services.gemini.key'),
-                [
-                    'system_instruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
-                    'contents' => $contents,
-                    'tools' => $this->tools(),
-                ]
-            );
+    {
+        $key = config('services.gemini.key');
 
-        return $response->json() ?? [];
-    } catch (\Throwable $e) {
-        \Log::error('GEMINI CALL FAILED: '.$e->getMessage());
-        return ['error' => ['message' => $e->getMessage()]];
+        if (! $key) {
+            \Log::error('GEMINI: API key is empty. Set GEMINI_API_KEY in .env, make sure config/services.php reads it, then run php artisan config:clear');
+
+            return ['error' => ['message' => 'Missing Gemini API key']];
+        }
+
+        try {
+            // Key goes in a header so it never ends up in URLs, logs or exception messages.
+            $response = Http::withHeaders(['x-goog-api-key' => $key])
+                ->timeout(45)
+                ->connectTimeout(5)
+                ->post(
+                    'https://generativelanguage.googleapis.com/v1beta/models/'.self::MODEL.':generateContent',
+                    [
+                        'system_instruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
+                        'contents' => $contents,
+                        'tools' => $this->tools(),
+                    ]
+                );
+
+            if ($response->failed()) {
+                \Log::error('GEMINI HTTP ERROR', [
+                    'status' => $response->status(),
+                    'body' => $response->json() ?? $response->body(),
+                ]);
+
+                return $response->json() ?? ['error' => ['message' => 'HTTP '.$response->status()]];
+            }
+
+            return $response->json() ?? [];
+        } catch (\Throwable $e) {
+            \Log::error('GEMINI CALL FAILED: '.$e->getMessage());
+
+            return ['error' => ['message' => $e->getMessage()]];
+        }
     }
-}
 
     /**
      * PHP decodes Gemini's empty {} args as an empty array, which then re-encodes
@@ -98,18 +120,37 @@ EOT;
 
         $contents = [];
         foreach ($validated['history'] ?? [] as $turn) {
+            // Gemini requires the conversation to start with a user turn.
+            if (empty($contents) && $turn['role'] !== 'user') {
+                continue;
+            }
             $contents[] = ['role' => $turn['role'], 'parts' => [['text' => $turn['text']]]];
         }
         $contents[] = ['role' => 'user', 'parts' => [['text' => $validated['message']]]];
 
-        $data = $this->callGemini($contents);
-        \Log::info('GEMINI RAW RESPONSE', $data);
-        $parts = $data['candidates'][0]['content']['parts'] ?? [];
-
         $draft = null;
 
-        foreach ($parts as $part) {
-            if (isset($part['functionCall'])) {
+        $data = $this->callGemini($contents);
+        \Log::info('GEMINI RAW RESPONSE', $data);
+
+        // Let the model call tools for a few rounds (e.g. look up reports, then draft one).
+        for ($round = 0; $round < self::MAX_TOOL_ROUNDS; $round++) {
+            $parts = $data['candidates'][0]['content']['parts'] ?? [];
+            $hasCall = collect($parts)->contains(fn ($part) => isset($part['functionCall']));
+
+            if (! $hasCall) {
+                break;
+            }
+
+            $modelParts = [];
+            $responseParts = [];
+
+            foreach ($parts as $part) {
+                if (! isset($part['functionCall'])) {
+                    $modelParts[] = $part;
+                    continue;
+                }
+
                 $name = $part['functionCall']['name'];
                 $args = $part['functionCall']['args'] ?? [];
 
@@ -126,27 +167,57 @@ EOT;
                     $functionResult = ['error' => 'Unknown tool'];
                 }
 
-                $functionCallPart = $part;
-$functionCallPart['functionCall']['args'] = $this->asObjectIfEmpty($args);
-$contents[] = ['role' => 'model', 'parts' => [$functionCallPart]];
-                $contents[] = ['role' => 'user', 'parts' => [[
+                // Echo the call back exactly as received (keeps any thought signature),
+                // only fixing empty args so they encode as {} instead of [].
+                $part['functionCall']['args'] = $this->asObjectIfEmpty($args);
+                $modelParts[] = $part;
+
+                $responseParts[] = [
                     'functionResponse' => [
                         'name' => $name,
                         'response' => $this->asObjectIfEmpty($functionResult),
                     ],
-                ]]];
-
-                $data = $this->callGemini($contents);
-                \Log::info('GEMINI RAW RESPONSE (after tool call)', $data);
-                $parts = $data['candidates'][0]['content']['parts'] ?? [];
+                ];
             }
+
+            $contents[] = ['role' => 'model', 'parts' => $modelParts];
+            $contents[] = ['role' => 'user', 'parts' => $responseParts];
+
+            $data = $this->callGemini($contents);
+            \Log::info('GEMINI RAW RESPONSE (after tool call)', $data);
         }
 
-        $reply = collect($parts)->pluck('text')->filter()->implode(' ') ?: "I'm not sure how to respond to that.";
+        $parts = $data['candidates'][0]['content']['parts'] ?? [];
+
+        $reply = collect($parts)
+            ->reject(fn ($part) => $part['thought'] ?? false)
+            ->pluck('text')
+            ->filter()
+            ->implode(' ');
+
+        $finishReason = $data['candidates'][0]['finishReason'] ?? null;
+        $errorMessage = $data['error']['message'] ?? null;
+
+        if ($reply === '') {
+            if ($errorMessage) {
+                \Log::error('CHAT: no reply because of an AI service error', ['error' => $errorMessage]);
+                $reply = "I couldn't reach the assistant service just now. Please try again in a moment.";
+            } elseif ($draft) {
+                $reply = "I've prepared a draft report for you. Review it and tap \"Use this draft\" to continue.";
+            } else {
+                \Log::warning('CHAT: empty model reply', [
+                    'finishReason' => $finishReason,
+                    'promptFeedback' => $data['promptFeedback'] ?? null,
+                ]);
+                $reply = "I'm not sure how to respond to that.";
+            }
+        }
 
         return response()->json([
             'reply' => $reply,
             'draft' => $draft,
+            // Only visible while APP_DEBUG=true, so you can read the cause in the Network tab.
+            'debug' => config('app.debug') ? ['error' => $errorMessage, 'finishReason' => $finishReason] : null,
         ]);
     }
 }

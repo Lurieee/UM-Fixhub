@@ -43,15 +43,25 @@ function BuildingDropdown({ value, onSelect }: { value: string; onSelect: (v: st
 
 export default function ReportFormScreen() {
   const router = useRouter();
-  const { category } = useLocalSearchParams<{ category: string }>();
+  const params = useLocalSearchParams<{
+  category?: string;
+  title?: string;
+  building?: string;
+  room?: string;
+  description?: string;
+  urgency?: string;
+}>();
+const { category } = params;
   const { addReport } = useReports();
   const { showAlert } = useAppAlert();
 
-  const [building, setBuilding] = useState('');
-  const [room, setRoom] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [urgency, setUrgency] = useState<Urgency>('Medium');
+  const [building, setBuilding] = useState(params.building ?? '');
+const [room, setRoom] = useState(params.room ?? '');
+const [title, setTitle] = useState(params.title ?? '');
+const [description, setDescription] = useState(params.description ?? '');
+const [urgency, setUrgency] = useState<Urgency>(
+  (['Low', 'Medium', 'High'].includes(params.urgency ?? '') ? params.urgency : 'Medium') as Urgency
+);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 

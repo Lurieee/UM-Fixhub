@@ -6,11 +6,19 @@ import { categoryIconName } from '@/data/categories';
 import { useReports } from '@/context/reports-context';
 import { OutlineIcon } from '@/components/outline-icon';
 
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  Submitted: { bg: 'bg-blue-50', text: 'text-blue-700' },
-  'Under Review': { bg: 'bg-orange-50', text: 'text-orange-700' },
-  'Awaiting Confirmation': { bg: 'bg-mustard/25', text: 'text-orange-700' },
-  Resolved: { bg: 'bg-green-50', text: 'text-green-700' },
+const STATUS_STYLES: Record<string, { label: string; bg: string; text: string }> = {
+  submitted: { label: 'Submitted', bg: 'bg-blue-50', text: 'text-blue-700' },
+  under_review: { label: 'Under Review', bg: 'bg-orange-50', text: 'text-orange-700' },
+  awaiting_confirmation: { label: 'Awaiting Confirmation', bg: 'bg-mustard/25', text: 'text-orange-700' },
+  resolved: { label: 'Resolved', bg: 'bg-green-50', text: 'text-green-700' },
+};
+
+const FALLBACK_STYLE = { label: 'Unknown', bg: 'bg-ink/5', text: 'text-ink/60' };
+
+// "Under Review" -> "under_review", "under_review" -> "under_review"
+const statusStyle = (status?: string) => {
+  const key = (status ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+  return STATUS_STYLES[key] ?? { ...FALLBACK_STYLE, label: status || FALLBACK_STYLE.label };
 };
 
 export default function MyReportsScreen() {
@@ -28,7 +36,7 @@ export default function MyReportsScreen() {
 
         <View className="gap-3">
           {reports.map((r) => {
-            const style = STATUS_STYLES[r.status];
+            const style = statusStyle(r.status);
             return (
               <Pressable
                 key={r.id}
@@ -51,7 +59,7 @@ export default function MyReportsScreen() {
                 </View>
                 <View className="px-3 items-center justify-center">
                   <Text className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${style.bg} ${style.text}`}>
-                    {r.status}
+                    {style.label}
                   </Text>
                 </View>
               </Pressable>

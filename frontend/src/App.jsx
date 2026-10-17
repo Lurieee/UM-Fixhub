@@ -189,8 +189,8 @@ export default function App() {
 }
 
 function Dashboard({ reports, updates, readNoticeIds, onRead, onNavigate }) {
-  return <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-6 lg:grid-cols-3">
-    <div className="space-y-8 lg:col-span-2"><HeroCard onNavigate={onNavigate} /><RecentReports reports={reports.slice(0, 3)} onNavigate={onNavigate} /></div>
+  return <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
+    <div className="flex flex-col gap-8 lg:col-span-2"><HeroCard onNavigate={onNavigate} /><RecentReports reports={reports.slice(0, 4)} onNavigate={onNavigate} /></div>
     <div className="space-y-6"><CampusUpdates updates={updates} readNoticeIds={readNoticeIds} onRead={onRead} onViewAll={() => onNavigate("/updates")} /><ActivityCard reports={reports} /><EmergencyCard /></div>
   </div>;
 }

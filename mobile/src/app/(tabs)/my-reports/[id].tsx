@@ -8,14 +8,24 @@ import { useReports } from '@/context/reports-context';
 import { OutlineIcon } from '@/components/outline-icon';
 import { useAppAlert } from '@/components/app-alert';
 
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  Submitted: { bg: 'bg-blue-50', text: 'text-blue-700' },
-  'Under Review': { bg: 'bg-orange-50', text: 'text-orange-700' },
-  'Awaiting Confirmation': { bg: 'bg-mustard/25', text: 'text-orange-700' },
-  Resolved: { bg: 'bg-green-50', text: 'text-green-700' },
+type StatusKey = 'submitted' | 'under_review' | 'awaiting_confirmation' | 'resolved';
+
+const STATUS_STYLES: Record<StatusKey, { label: string; bg: string; text: string }> = {
+  submitted: { label: 'Submitted', bg: 'bg-blue-50', text: 'text-blue-700' },
+  under_review: { label: 'Under Review', bg: 'bg-orange-50', text: 'text-orange-700' },
+  awaiting_confirmation: { label: 'Awaiting Confirmation', bg: 'bg-mustard/25', text: 'text-orange-700' },
+  resolved: { label: 'Resolved', bg: 'bg-green-50', text: 'text-green-700' },
 };
 
-function formatTimestamp(value: string | null) {
+const FALLBACK_STYLE = { label: 'Unknown', bg: 'bg-ink/5', text: 'text-ink/60' };
+
+// "Under Review" -> "under_review", "under_review" -> "under_review"
+const toStatusKey = (status?: string): StatusKey | null => {
+  const key = (status ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+  return key in STATUS_STYLES ? (key as StatusKey) : null;
+};
+
+function formatTimestamp(value: string | null | undefined) {
   if (!value) return '';
   const date = new Date(value);
   if (isNaN(date.getTime())) return '';
@@ -38,26 +48,31 @@ export default function ReportDetailScreen() {
     );
   }
 
-  const style = STATUS_STYLES[report.status];
+  const statusKey = toStatusKey(report.status);
+  const style = statusKey
+    ? STATUS_STYLES[statusKey]
+    : { ...FALLBACK_STYLE, label: report.status || FALLBACK_STYLE.label };
+
+  const isUnderReviewOrLater =
+    statusKey === 'under_review' || statusKey === 'awaiting_confirmation' || statusKey === 'resolved';
+  const isAwaitingOrLater = statusKey === 'awaiting_confirmation' || statusKey === 'resolved';
+
   const steps = [
     { label: 'Submitted', done: true, sub: report.reportedAt },
-    {
-      label: 'Under Review',
-      done: report.status === 'Under Review' || report.status === 'Awaiting Confirmation' || report.status === 'Resolved',
-      sub: formatTimestamp(report.underReviewAt),
-    },
-    {
-      label: 'Awaiting Confirmation',
-      done: report.status === 'Awaiting Confirmation' || report.status === 'Resolved',
-      sub: formatTimestamp(report.awaitingConfirmationAt),
-    },
-    { label: 'Resolved', done: report.status === 'Resolved', sub: formatTimestamp(report.resolvedAt) },
+    { label: 'Under Review', done: isUnderReviewOrLater, sub: formatTimestamp(report.underReviewAt) },
+    { label: 'Awaiting Confirmation', done: isAwaitingOrLater, sub: formatTimestamp(report.awaitingConfirmationAt) },
+    { label: 'Resolved', done: statusKey === 'resolved', sub: formatTimestamp(report.resolvedAt) },
   ];
 
-  const changeStatus = async (status: 'Resolved' | 'Under Review') => {
+  // Send the status in the same format the report data already uses
+  // ("under_review" vs "Under Review"), so the update matches what the backend/context expects.
+  const usesKeys = report.status === report.status?.toLowerCase();
+  const toApiStatus = (key: StatusKey) => (usesKeys ? key : STATUS_STYLES[key].label);
+
+  const changeStatus = async (key: 'resolved' | 'under_review') => {
     setSaving(true);
     try {
-      await updateReport(report.id, { status });
+      await updateReport(report.id, { status: toApiStatus(key) as any });
     } catch (err: any) {
       showAlert('Failed', err.response?.data?.message || 'Could not update report.');
     } finally {
@@ -68,14 +83,14 @@ export default function ReportDetailScreen() {
   const handleResolve = () => {
     showAlert('Confirm & Close?', 'Has this issue actually been fixed?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Yes, Resolve', onPress: () => changeStatus('Resolved') },
+      { text: 'Yes, Resolve', onPress: () => changeStatus('resolved') },
     ]);
   };
 
   const handleReopen = () => {
     showAlert('Not Fixed Yet?', 'This will send the report back to the facilities team for more work.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Reopen Report', onPress: () => changeStatus('Under Review') },
+      { text: 'Reopen Report', onPress: () => changeStatus('under_review') },
     ]);
   };
 
@@ -100,7 +115,7 @@ export default function ReportDetailScreen() {
           <View className="flex-row items-center justify-between mb-1">
             <Text className="text-ink text-base font-semibold">{report.title}</Text>
             <Text className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${style.bg} ${style.text}`}>
-              {report.status}
+              {style.label}
             </Text>
           </View>
           <Text className="text-ink/50 text-xs mb-3">
@@ -118,11 +133,11 @@ export default function ReportDetailScreen() {
           <Text className="text-ink/70 text-xs leading-5">{report.description}</Text>
         </View>
 
-        {report.status === 'Awaiting Confirmation' && (
+        {statusKey === 'awaiting_confirmation' && (
           <View className="bg-mustard/15 border border-mustard/40 rounded-xl p-4 mb-5">
             <Text className="text-ink text-sm font-bold">Facilities marked this as fixed</Text>
             <Text className="text-ink/60 text-xs mt-1 leading-4">
-              Is the issue actually resolved? Confirm to close it, or send it back if it's not fixed yet.
+              Is the issue actually resolved? Confirm to close it, or send it back if it&apos;s not fixed yet.
             </Text>
             <View className="flex-row gap-2 mt-3">
               <Pressable

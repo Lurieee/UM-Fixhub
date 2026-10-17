@@ -1,6 +1,6 @@
 ﻿import { Tabs } from 'expo-router';
 import { Platform, View } from 'react-native';
-
+import { ChatWidget } from '@/components/chat-widget';
 import { OutlineIcon, OutlineIconName } from '@/components/outline-icon';
 
 function TabIcon({ name, focused }: { name: OutlineIconName; focused: boolean }) {
@@ -62,6 +62,7 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
+      <ChatWidget />
     </View>
   );
 }

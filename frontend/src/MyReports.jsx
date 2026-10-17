@@ -4,6 +4,13 @@ import Icon from "./Icon";
 import { statusStyles } from "./mockData";
 
 export default function MyReports({ reports, onNavigate, onDelete }) {
+  const FILTERS = [
+  ["all", "All Reports"],
+  ["submitted", "Submitted"],
+  ["under_review", "Under Review"],
+  ["awaiting_confirmation", "Awaiting Confirmation"],
+  ["resolved", "Resolved"],
+];
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
@@ -29,7 +36,7 @@ export default function MyReports({ reports, onNavigate, onDelete }) {
       <button onClick={() => onNavigate("/report-issue")} className="w-full rounded-2xl bg-[#b40012] px-6 py-3.5 font-bold text-white shadow-lg shadow-red-900/15 sm:w-auto"><Plus className="mr-2 inline h-5 w-5" />New Report</button>
     </div>
     <div className="mb-9 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2">
-      {["all", "in_progress", "resolved", "submitted"].map((key) => <button key={key} onClick={() => setFilter(key)} className={`rounded-xl px-5 py-2.5 text-sm font-bold ${filter === key ? "bg-[#b40012] text-white" : "text-slate-600"}`}>{key === "all" ? "All Reports" : key === "in_progress" ? "In Progress" : key === "resolved" ? "Resolved" : "Drafts"}</button>)}
+  {FILTERS.map(([key, label]) => <button key={key} onClick={() => setFilter(key)} className={`rounded-xl px-5 py-2.5 text-sm font-bold ${filter === key ? "bg-[#b40012] text-white" : "text-slate-600"}`}>{label}</button>)}
       <label className="relative w-full sm:ml-auto sm:w-auto"><Search className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search reports..." className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 text-sm outline-none focus:border-red-300 sm:w-56" /></label>
     </div>
     {notice && <div role="alert" className="mb-5 flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"><span>{notice}</span><button onClick={() => setNotice("")} className="font-bold">Dismiss</button></div>}
@@ -66,7 +73,7 @@ function canEdit(report) {
 }
 
 function editRestrictionMessage(report) {
-  if (report.status === "in_progress") return "This report can no longer be edited because maintenance is already in progress.";
+  if (report.status === "under_review" || report.status === "awaiting_confirmation") return "This report can no longer be edited because it is already being handled.";
   if (report.status === "resolved") return "This report can no longer be edited because it has already been resolved.";
   return "This report can no longer be edited because it was submitted more than 10 minutes ago.";
 }
